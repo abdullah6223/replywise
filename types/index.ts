@@ -1,0 +1,373 @@
+export type Priority = 'critical' | 'high' | 'medium' | 'low'
+export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed' | 'duplicate'
+export type TicketCategory = 'bug' | 'feature_request' | 'documentation' | 'how_to' | 'general_question'
+// 'needs_human' is written by lib/ai/agent.ts whenever a draft is held for
+// staff approval instead of auto-posted — either because Automatic
+// Deflections is off, confidence was below the bar, or no AI provider is
+// configured (in which case ai_draft is null). It is by far the most common
+// non-deflected outcome, so every consumer of this type must handle it.
+export type AIDraftStatus = 'pending' | 'needs_human' | 'posted' | 'approved' | 'overridden'
+// Why a ticket was routed to a person without an AI draft: the workspace hit
+// its included AI limit (monthly or trial), has no active plan, or AI was
+// otherwise unavailable on the platform; or the draft was skipped on purpose
+// for a bug report or feature request, or an email from a sender that could
+// not be verified.
+export type AIDraftSkipReason =
+  | 'ai_limit_reached'
+  | 'trial_ai_limit_reached'
+  | 'no_active_plan'
+  | 'ai_unavailable'
+  | 'bug_or_feature'
+  | 'unverified_sender'
+
+export type SourcePlatform = 'discord' | 'slack' | 'telegram' | 'email' | 'github' | 'mcp' | 'google_chat' | 'discourse' | 'circle'
+
+export interface Ticket {
+  id: number
+  org_ticket_number: number
+  source_message_id: string | null
+  discord_guild_id: string | null
+  source_channel_id: string | null
+  source_thread_id: string | null
+  source_author_id: string | null
+  source_author_name: string | null
+  discord_deleted_at: string | null
+  // Precomputed deep link back to the original message. Set at ingest time
+  // for platforms (Slack, Discourse, Circle) where a working URL can't be
+  // derived from stored IDs alone at render time — null on platforms whose
+  // link is constructed directly (Discord/Telegram/GitHub) or none (email).
+  source_url: string | null
+  source_platform: SourcePlatform
+  content: string
+  // AI triage
+  category: TicketCategory | null
+  severity_score: number | null
+  ai_summary: string | null
+  ai_suggested_priority: Priority | null
+  // AI agent draft
+  ai_draft: string | null
+  ai_draft_status: AIDraftStatus
+  ai_draft_skip_reason: AIDraftSkipReason | null
+  ai_draft_posted_at: string | null
+  // Lifecycle
+  priority: Priority
+  status: TicketStatus
+  resolution_notes: string | null
+  // SLA
+  sla_response_deadline: string | null
+  sla_resolve_deadline: string | null
+  sla_response_met: 0 | 1 | null
+  sla_resolve_met: 0 | 1 | null
+  first_response_at: string | null
+  resolved_at: string | null
+  created_at: string
+  updated_at: string
+  /** When anything last happened on the conversation. */
+  last_activity_at: string
+  /** When the customer last wrote on this ticket after it opened; null if they never did. */
+  last_customer_reply_at: string | null
+  /** When the team last opened the ticket. */
+  last_seen_at: string | null
+}
+
+export interface TicketReply {
+  id: number
+  ticket_id: number
+  staff_name: string
+  content: string
+  discord_msg_id: string | null
+  author_role: TicketReplyRole
+  source_message_id: string | null
+  created_at: string
+}
+
+export type TicketReplyRole = 'staff' | 'customer' | 'context' | 'ai'
+
+export interface TicketEvent {
+  id: number
+  ticket_id: number
+  event_type: string
+  old_value: string | null
+  new_value: string | null
+  actor: string | null
+  created_at: string
+}
+
+export interface SLAConfig {
+  id: number
+  priority: Priority
+  response_hours: number
+  resolve_hours: number
+  updated_at: string
+}
+
+export interface FAQSnapshot {
+  id: number
+  week_start: string
+  week_end: string
+  content: string
+  ticket_count: number
+  generated_at: string
+}
+
+export interface GitHubRepo {
+  id: number
+  org_id: number
+  installation_id: number
+  owner: string
+  repo: string
+  is_private: 0 | 1
+  monitored_events: string
+  kb_enabled: 0 | 1
+  kb_last_synced: string | null
+  kb_chunk_count: number
+  auto_deflect_enabled: 0 | 1
+  added_at: string
+}
+
+export interface Notification {
+  id: number
+  ticket_id: number | null
+  type: 'new_question' | 'sla_breach' | 'ai_draft_ready' | 'ticket_activity'
+  message: string
+  read: 0 | 1
+  created_at: string
+}
+
+export interface TriageResult {
+  category: TicketCategory
+  severity_score: number
+  summary: string
+  suggested_priority: Priority
+  reasoning: string
+}
+
+export interface AIAssessment {
+  ticket_id: number
+  confidence: number
+  answered_fully: 0 | 1
+  auto_deflected: 0 | 1
+  reasoning: string | null
+  model: string | null
+  created_at: string
+}
+
+export interface RelatedTicket {
+  id: number
+  org_ticket_number: number
+  summary: string
+  category: TicketCategory | null
+  status: TicketStatus
+  score: number
+  created_at: string
+}
+
+export interface PriorAnswer {
+  summary: string
+  answer: string
+  /** Set when the answer came from a knowledge-base article, so its use can be counted. */
+  articleId?: number
+}
+
+/**
+ * Whether a person has checked an article, judged against its current text:
+ * 'verified' while the content still matches what was checked, 'changed' once
+ * it no longer does, 'never' when nobody has verified it.
+ */
+export type ArticleVerificationStatus = 'never' | 'verified' | 'changed'
+
+export interface ArticleVerification {
+  status: ArticleVerificationStatus
+  /** When it was last verified, even if the article has changed since. */
+  verified_at: string | null
+  verified_by: number | null
+  /** The verifier's name, or null when unknown or the user has been deleted. */
+  verified_by_name: string | null
+  note: string | null
+}
+
+export interface KBArticle {
+  id: number
+  question: string
+  answer: string
+  source_ticket_id: number | null
+  source_ticket_number: number | null
+  source_id: number | null
+  source_page: number | null
+  published: 0 | 1
+  created_at: string
+  updated_at: string
+  /** Present on the article list; absent on search results. */
+  verification?: ArticleVerification
+  /** Present on the article list: whether this viewer (owner or admin) may see the answers it was supplied to. */
+  can_view_answers?: boolean
+}
+
+export type KBArticleEventType =
+  | 'created'
+  | 'promoted'
+  | 'edited'
+  | 'review_approved'
+  | 'review_rejected'
+  | 'review_reopened'
+  | 'verified'
+
+export type KBArticleEventOrigin = 'manual' | 'ticket_promotion' | 'review_queue' | 'import' | 'sync'
+
+export interface KBArticleEvent {
+  id: number
+  article_id: number | null
+  type: KBArticleEventType
+  /** Null for automated events and for users who have since been deleted. */
+  actor_user_id: number | null
+  origin: KBArticleEventOrigin
+  source_ticket_id: number | null
+  review_item_id: number | null
+  /** Fingerprint of the question and answer at that moment; null for review events with no article yet. */
+  content_hash: string | null
+  created_at: string
+}
+
+/** One line of an article's history as the dashboard shows it. */
+export interface KBArticleHistoryEntry extends KBArticleEvent {
+  /** The actor's name (or email when they have no name). Null when there is no actor or the user was deleted. */
+  actor_name: string | null
+  /** The workspace-visible number of the ticket this event came from, when it came from one. */
+  source_ticket_number: number | null
+}
+
+export type KBAnswerSurface = 'widget' | 'ticket' | 'discord' | 'agent_api'
+export type KBAnswerOutcome = 'generated' | 'failed'
+
+/** One article supplied to one answer. */
+export interface KBAnswerReference {
+  /** Null once the article has been deleted; the hash below still says which revision was supplied. */
+  article_id: number | null
+  article_content_hash: string
+  /** Position in the final context, lowest first. */
+  rank: number
+  /** Retrieval score, when the caller had one. */
+  score: number | null
+}
+
+export interface KBAnswerRecord {
+  id: string
+  surface: KBAnswerSurface
+  outcome: KBAnswerOutcome
+  created_at: string
+  references: KBAnswerReference[]
+}
+
+/** Where a source stands now compared with what was supplied to the answer. */
+export type KBAnswerSourceStatus = 'current' | 'changed' | 'unpublished' | 'deleted'
+
+/** One article supplied to a ticket's draft, with its current standing. */
+export interface KBAnswerSource {
+  /** Null once the article has been deleted. */
+  article_id: number | null
+  /** The article's own title (its question), never text from the conversation. Null once deleted. */
+  title: string | null
+  rank: number
+  status: KBAnswerSourceStatus
+  /** How many more articles with exactly the same text were supplied and are folded into this one. 0 when there were none. */
+  copies: number
+}
+
+/** The sources behind a ticket's most recent draft. */
+export interface KBTicketAnswerSources {
+  answer_id: string
+  outcome: KBAnswerOutcome
+  created_at: string
+  sources: KBAnswerSource[]
+}
+
+/** An answer an article was supplied to, with whether the article has changed since. */
+export interface KBArticleAnswerView extends KBArticleAnswerRef {
+  /** `current` when the article is unchanged since that answer, `earlier` when it was a different version. */
+  revision: 'current' | 'earlier'
+}
+
+/** An answer an article was supplied to, as seen from the article. */
+export interface KBArticleAnswerRef {
+  answer_id: string
+  surface: KBAnswerSurface
+  outcome: KBAnswerOutcome
+  created_at: string
+  rank: number
+  score: number | null
+  article_content_hash: string
+}
+
+export interface KBSource {
+  id: number
+  org_id: number
+  filename: string
+  file_type: string
+  size_bytes: number
+  chunk_count: number
+  published: 0 | 1
+  created_at: string
+  updated_at: string
+}
+
+/** A connected Notion workspace. Never carries the access token. */
+export interface NotionConnection {
+  id: number
+  org_id: number
+  workspace_name: string | null
+  kb_source_id: number | null
+  kb_last_synced: string | null
+  kb_chunk_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface KBSearchResult extends KBArticle {
+  score: number
+}
+
+export type FeedbackVote = 'up' | 'down'
+export type FeedbackSource = 'discord' | 'slack' | 'staff'
+
+export interface FeedbackSummary {
+  up: number
+  down: number
+  staffVote: FeedbackVote | null
+}
+
+export interface TicketFilters {
+  status?: TicketStatus
+  priority?: Priority
+  category?: TicketCategory
+  /** Tickets with an AI assessment marked as auto-deflected. */
+  autoDeflected?: boolean
+  /** Open tickets whose AI assessment requires human review. */
+  needsReview?: boolean
+  /** Open tickets with an AI draft waiting to be processed. */
+  pendingDraft?: boolean
+  /** Tickets with a breached response or resolution SLA, excluding duplicates. */
+  slaBreached?: boolean
+  /** Tickets with customer replies the team hasn't opened yet. */
+  newActivity?: boolean
+  /** Order by creation date (default) or by the most recent activity. */
+  sort?: 'created' | 'activity'
+}
+
+export interface CreateTicketInput {
+  source_message_id?: string
+  discord_guild_id?: string
+  source_channel_id?: string
+  source_thread_id?: string
+  source_author_id?: string
+  source_author_name?: string
+  source_url?: string
+  source_platform?: SourcePlatform
+  content: string
+  category?: TicketCategory
+  severity_score?: number
+  ai_summary?: string
+  ai_suggested_priority?: Priority
+  priority: Priority
+  sla_response_deadline?: string
+  sla_resolve_deadline?: string
+}
