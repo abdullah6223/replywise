@@ -1,0 +1,20 @@
+packages:
+  - packages/*
+
+# Supply-chain hardening
+blockExoticSubdeps: true       # block deps installed from non-registry sources (git, file, http)
+minimumReleaseAge: 10080       # require packages to be 7 days old before installing (minutes)
+# trustPolicy: no-downgrade — disabled: next-auth v5 betas lack provenance attestation
+# Re-enable when Auth.js v5 stable ships with provenance
+
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
+  - unrs-resolver
+allowBuilds:
+  '@scarf/scarf': false # telemetry-only postinstall script, no functional need
+  '@sentry/cli': true # downloads the prebuilt sentry-cli binary for source-map upload at build time
+  better-sqlite3: true
+  esbuild: true
+  sharp: true
+  unrs-resolver: true

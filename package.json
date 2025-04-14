@@ -1,0 +1,26 @@
+{
+  "name": "replywise",
+  "version": "0.6.7",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --webpack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "oxlint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint:fix": "oxlint --fix"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/react": "^19.1.1",
+    "@types/react-dom": "^19.1.2",
+    "typescript": "^5"
+  }
+}
