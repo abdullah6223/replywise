@@ -1,0 +1,52 @@
+import { GITHUB_URL } from '@/lib/site'
+
+export const ORGANIZATION_ID = 'https://replywise.example.com/#organization'
+export const WEBSITE_ID = 'https://replywise.example.com/#website'
+
+/**
+ * The canonical public identity graph shared by every crawlable route.
+ *
+ * Keep this limited to relationships that Replywise can verify and control:
+ * the canonical site, repository, documentation, logo, and support contact.
+ * Additional social profiles belong here only once they are official and
+ * maintained by the project.
+ */
+export const siteIdentityJsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Organization',
+      '@id': ORGANIZATION_ID,
+      name: 'Replywise',
+      url: 'https://replywise.example.com',
+      logo: {
+        '@type': 'ImageObject',
+        url: 'https://replywise.example.com/logo.png',
+      },
+      description:
+        'Open-source support software for preparing and reviewing answers from workspace documentation across connected community channels.',
+      sameAs: [GITHUB_URL],
+      contactPoint: {
+        '@type': 'ContactPoint',
+        contactType: 'customer support',
+        email: 'support@replywise.example.com',
+        url: 'https://replywise.example.com/docs',
+      },
+    },
+    {
+      '@type': 'WebSite',
+      '@id': WEBSITE_ID,
+      name: 'Replywise',
+      url: 'https://replywise.example.com',
+      publisher: { '@id': ORGANIZATION_ID },
+    },
+    {
+      '@type': 'WebPage',
+      '@id': 'https://replywise.example.com/docs',
+      name: 'Replywise Documentation',
+      url: 'https://replywise.example.com/docs',
+      isPartOf: { '@id': WEBSITE_ID },
+      about: { '@id': ORGANIZATION_ID },
+    },
+  ],
+} as const
