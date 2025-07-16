@@ -1,0 +1,229 @@
+'use server'
+
+import { z } from 'zod'
+import { requireOrgAccess } from '@/lib/auth/org'
+import { saveOrgAIConfig, deleteOrgAIConfig, getOrgAIConfig } from '@/lib/db/queries/ai-config'
+import { planRequiredFor } from '@/lib/billing/entitlements'
+import { orgHasFeature } from '@/lib/billing/entitlements-server'
+import { PLANS } from '@/lib/billing/plans'
+import { testAIProviderConnection, type AIConnectionResult } from '@/lib/ai/test-connection'
+import { validateAIConfig } from '@/lib/ai/config-validation'
+import { listModelsForProvider, ModelListError } from '@/lib/ai/list-models'
+import { includedEmbeddingsAvailable } from '@/lib/billing/platform-ai-budget'
+import { assertPublicHttpsUrl, UnsafeUrlError } from '@/lib/http/safe-url'
+
+const CHAT_PROVIDERS = ['openai', 'anthropic', 'google', 'groq', 'mistral', 'xai', 'openai-compatible'] as const
+const EMBEDDING_PROVIDERS = ['openai', 'openai-compatible'] as const
+
+const SaveSchema = z.object({
+  chat_provider: z.enum(CHAT_PROVIDERS),
+  chat_model: z.string().min(1).max(200),
+  chat_api_key: z.string().max(500).optional(),
+  chat_base_url: z.string().url().max(500).optional().or(z.literal('')),
+  embedding_provider: z.enum(EMBEDDING_PROVIDERS),
+  embedding_model: z.string().min(1).max(200),
+  embedding_api_key: z.string().max(500).optional(),
+  embedding_base_url: z.string().url().max(500).optional().or(z.literal('')),
+})
+
+const UNSAFE_BASE_URL_ERROR = 'The base URL must be a public https address (no credentials, no private or local hosts).'
+
+/**
+ * Bring-your-own-key with a named provider is included on every plan. Only an
+ * arbitrary custom endpoint ('openai-compatible') is the Enterprise-gated
+ * "Custom AI model configuration" row. Shared by save, test and list-models.
+ */
+async function customEndpointEntitlementError(
+  orgId: number,
+  providers: readonly string[]
+): Promise<string | null> {
+  if (!providers.includes('openai-compatible')) return null
+  if (await orgHasFeature(orgId, 'custom_ai_model_config')) return null
+  const requiredPlan = planRequiredFor('custom_ai_model_config')
+  return `Custom AI model configuration is available on the ${PLANS[requiredPlan].name} plan and above.`
+}
+
+/** Returns an error message when any given base URL is not a public https address. */
+async function baseUrlError(urls: (string | null | undefined)[]): Promise<string | null> {
+  for (const u of urls) {
+    if (!u) continue
+    try {
+      await assertPublicHttpsUrl(u)
+    } catch (err) {
+      if (err instanceof UnsafeUrlError) return UNSAFE_BASE_URL_ERROR
+      throw err
+    }
+  }
+  return null
+}
+
+async function resolveOrgForAIConfig() {
+  // The org's model provider + API keys are org-wide credentials — same
+  // sensitivity class as API keys and ownership transfer, so owner/admin only,
+  // resolved from a real membership row (never a default-org fallback).
+  return requireOrgAccess(['owner', 'admin'])
+}
+
+export async function saveAIConfigAction(
+  _prevState: unknown,
+  formData: FormData
+): Promise<{ error?: string } | null> {
+  const access = await resolveOrgForAIConfig()
+  if (!access.ok) return { error: access.error }
+  const { orgId } = access
+
+  const parsed = SaveSchema.safeParse(Object.fromEntries(formData))
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+  const d = parsed.data
+
+  const existing = await getOrgAIConfig(orgId)
+
+  const validationError = validateAIConfig(d, existing, { includedEmbeddings: await includedEmbeddingsAvailable(orgId) })
+  if (validationError) return { error: validationError }
+
+  const entitlementError = await customEndpointEntitlementError(orgId, [d.chat_provider, d.embedding_provider])
+  if (entitlementError) return { error: entitlementError }
+
+  const urlError = await baseUrlError([d.chat_base_url, d.embedding_base_url])
+  if (urlError) return { error: urlError }
+
+  // When the provider changed and the key field was left blank (only reachable
+  // for a keyless openai-compatible endpoint after validation), wipe the stale
+  // key rather than carrying the old provider's credential forward.
+  const clearChatKey =
+    !!existing && existing.chat_provider !== d.chat_provider && !d.chat_api_key
+  const clearEmbeddingKey =
+    !!existing && existing.embedding_provider !== d.embedding_provider && !d.embedding_api_key
+
+  await saveOrgAIConfig(orgId, {
+    chat_provider: d.chat_provider,
+    chat_model: d.chat_model,
+    chat_api_key: d.chat_api_key || null,
+    chat_base_url: d.chat_base_url || null,
+    embedding_provider: d.embedding_provider,
+    embedding_model: d.embedding_model,
+    embedding_api_key: d.embedding_api_key || null,
+    embedding_base_url: d.embedding_base_url || null,
+    clear_chat_api_key: clearChatKey,
+    clear_embedding_api_key: clearEmbeddingKey,
+  })
+
+  return null
+}
+
+export async function clearAIConfigAction(
+  _prevState: unknown,
+  _formData: FormData
+): Promise<{ error?: string } | null> {
+  const access = await resolveOrgForAIConfig()
+  if (!access.ok) return { error: access.error }
+
+  await deleteOrgAIConfig(access.orgId)
+  return null
+}
+
+/**
+ * Run a live check against the entered credentials without saving. A blank key
+ * field means "use the one already stored" — same semantics as save.
+ */
+export async function testAIConfigAction(
+  _prevState: unknown,
+  formData: FormData
+): Promise<{ error?: string; result?: AIConnectionResult }> {
+  const access = await resolveOrgForAIConfig()
+  if (!access.ok) return { error: access.error }
+
+  const parsed = SaveSchema.safeParse(Object.fromEntries(formData))
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Fill in the form first' }
+  const d = parsed.data
+
+  const entitlementError = await customEndpointEntitlementError(access.orgId, [d.chat_provider, d.embedding_provider])
+  if (entitlementError) return { error: entitlementError }
+
+  const existing = await getOrgAIConfig(access.orgId)
+
+  const embeddingApiKey =
+    d.embedding_api_key ||
+    existing?.embedding_api_key ||
+    // OpenAI embeddings inherit the OpenAI chat key, matching lib/ai/models.ts
+    (d.embedding_provider === 'openai' && d.chat_provider === 'openai'
+      ? d.chat_api_key || existing?.chat_api_key || null
+      : null)
+  // With no OpenAI key to embed with, a hosted workspace's knowledge base runs
+  // on included usage, so there is no embedding provider of its own to check.
+  const skipEmbedding =
+    d.embedding_provider === 'openai' && !embeddingApiKey && (await includedEmbeddingsAvailable(access.orgId))
+
+  const result = await testAIProviderConnection({
+    chatProvider: d.chat_provider,
+    chatModel: d.chat_model,
+    chatApiKey: d.chat_api_key || existing?.chat_api_key || null,
+    chatBaseUrl: d.chat_base_url || existing?.chat_base_url || null,
+    embeddingProvider: d.embedding_provider,
+    embeddingModel: d.embedding_model,
+    embeddingApiKey,
+    embeddingBaseUrl: d.embedding_base_url || existing?.embedding_base_url || null,
+    skipEmbedding,
+  })
+
+  return { result }
+}
+
+/**
+ * Whether this workspace's knowledge base can run on included AI usage, which
+ * makes the OpenAI embedding key optional in the Settings form.
+ */
+export async function includedEmbeddingsAvailableAction(): Promise<boolean> {
+  const access = await resolveOrgForAIConfig()
+  if (!access.ok) return false
+  return includedEmbeddingsAvailable(access.orgId)
+}
+
+const ListModelsSchema = z.object({
+  chat_provider: z.enum(CHAT_PROVIDERS),
+  chat_api_key: z.string().max(500).optional(),
+  chat_base_url: z.string().url().max(500).optional().or(z.literal('')),
+})
+
+/**
+ * Live model list for the currently selected provider, using the key just
+ * typed (or the org's saved one if that field was left blank) — same
+ * key-resolution semantics as testAIConfigAction. Never persists anything.
+ * Settings' Model ID dropdown calls this instead of relying on a hardcoded
+ * list that goes stale every time a provider ships a new model.
+ */
+export async function listModelsAction(
+  _prevState: unknown,
+  formData: FormData
+): Promise<{ error?: string; models?: string[] }> {
+  const access = await resolveOrgForAIConfig()
+  if (!access.ok) return { error: access.error }
+
+  const parsed = ListModelsSchema.safeParse(Object.fromEntries(formData))
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Fill in the form first' }
+  const d = parsed.data
+
+  const entitlementError = await customEndpointEntitlementError(access.orgId, [d.chat_provider])
+  if (entitlementError) return { error: entitlementError }
+
+  const existing = await getOrgAIConfig(access.orgId)
+  const apiKey = d.chat_api_key || existing?.chat_api_key || null
+  const baseUrl = d.chat_base_url || existing?.chat_base_url || null
+
+  if (!apiKey && d.chat_provider !== 'openai-compatible') {
+    return { error: 'Enter an API key first' }
+  }
+
+  try {
+    const models = await listModelsForProvider(d.chat_provider, apiKey ?? '', baseUrl)
+    if (models.length === 0) return { error: 'That provider returned no chat models for this key.' }
+    return { models }
+  } catch (err) {
+    // Never relay upstream text: only fixed messages (and a bare status code)
+    // reach the client.
+    let message = 'Could not fetch the model list.'
+    if (err instanceof UnsafeUrlError) message = UNSAFE_BASE_URL_ERROR
+    else if (err instanceof ModelListError) message = `The provider rejected the request (${err.status}).`
+    return { error: message.replace(/\s+/g, ' ').trim().slice(0, 200) }
+  }
+}
