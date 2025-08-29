@@ -9,7 +9,10 @@ Teams that run a Discord server, a Slack workspace, a forum or a GitHub project 
 
 Main features:
 
-- **Ticket inbox.** Every incoming question becomes a ticket with a status, priority, SLA deadlines and an activity log, with CSV export.
+- **One inbox for many channels.** Questions from Discord all become tickets.
+- **Two-agent review.** One agent drafts a reply; a separate agent grades the draft against the evidence and gives it a confidence score.
+- **Human approval or automatic replies.** Low-confidence drafts wait in a review queue; teams can let high-confidence answers post automatically per channel.
+- **Ticket workflow.** AI triage (category, severity, priority), SLA deadlines, related-question search, ticket threads, CSV export and an activity log.
 - **Workspaces and teams.** Google sign-in, workspaces with invites and roles, and email notifications.
 
 ## Development
@@ -19,6 +22,7 @@ pnpm install
 cp .env.example .env
 docker compose up -d postgres
 pnpm dev
+pnpm bot        # Discord bot and background jobs
 pnpm test
 ```
 
