@@ -1,0 +1,52 @@
+import { NextRequest } from 'next/server'
+import { requireOrgAccess } from '@/lib/auth/org'
+import { deleteKBSource, setKBSourcePublished } from '@/lib/db/queries/kb-sources'
+import { logger } from '@/lib/logger'
+import { getRequestId } from '@/lib/request-id'
+
+const MOD = 'api/kb/sources/[id]'
+
+export async function DELETE(
+  req: NextRequest,
+  ctx: { params: Promise<{ id: string }> }
+) {
+  try {
+    const access = await requireOrgAccess(['owner', 'admin'])
+    if (!access.ok) return Response.json({ error: access.error }, { status: access.error === 'Unauthorized' ? 401 : 403 })
+    const orgId = access.orgId
+    const { id } = await ctx.params
+    const sourceId = Number(id)
+    if (!Number.isInteger(sourceId)) return Response.json({ error: 'Invalid ID' }, { status: 400 })
+    await deleteKBSource(sourceId, orgId)
+    return new Response(null, { status: 204 })
+  } catch (err) {
+    logger.error('failed to delete KB source', { module: MOD, requestId: getRequestId(req), error: err })
+    return Response.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+/** Toggle whether a source (and all its chunks) is served to retrieval / the widget. */
+export async function PATCH(
+  req: NextRequest,
+  ctx: { params: Promise<{ id: string }> }
+) {
+  try {
+    const access = await requireOrgAccess(['owner', 'admin'])
+    if (!access.ok) return Response.json({ error: access.error }, { status: access.error === 'Unauthorized' ? 401 : 403 })
+    const orgId = access.orgId
+    const { id } = await ctx.params
+    const sourceId = Number(id)
+    if (!Number.isInteger(sourceId)) return Response.json({ error: 'Invalid ID' }, { status: 400 })
+
+    const body = (await req.json().catch(() => null)) as { published?: unknown } | null
+    if (body?.published !== 0 && body?.published !== 1) {
+      return Response.json({ error: 'published must be 0 or 1' }, { status: 400 })
+    }
+
+    await setKBSourcePublished(sourceId, orgId, body.published)
+    return new Response(null, { status: 204 })
+  } catch (err) {
+    logger.error('failed to update KB source published state', { module: MOD, requestId: getRequestId(req), error: err })
+    return Response.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
