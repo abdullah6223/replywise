@@ -7,9 +7,12 @@ Self-hostable AI support for online communities: it drafts answers from your own
 
 Teams that run a Discord server, a Slack workspace, a forum or a GitHub project end up answering the same questions again and again, in several places at once. Replywise collects those questions into one inbox, answers the ones your knowledge base already covers, and hands the rest to a person with a draft and the sources it used.
 
+It is built for open-source maintainers, developer-tool companies and community teams who want AI help with support without giving up control of what gets posted.
+
 Main features:
 
-- **One inbox for many channels.** Questions from Discord all become tickets.
+- **One inbox for many channels.** Questions from Discord and Slack all become tickets.
+- **Answers grounded in your knowledge base.** Articles come from uploaded files (PDF, DOCX, CSV, Markdown, ZIP) and crawled URLs, stored with vector embeddings for semantic search.
 - **Two-agent review.** One agent drafts a reply; a separate agent grades the draft against the evidence and gives it a confidence score.
 - **Human approval or automatic replies.** Low-confidence drafts wait in a review queue; teams can let high-confidence answers post automatically per channel.
 - **Ticket workflow.** AI triage (category, severity, priority), SLA deadlines, related-question search, ticket threads, CSV export and an activity log.
