@@ -11,8 +11,8 @@ It is built for open-source maintainers, developer-tool companies and community 
 
 Main features:
 
-- **One inbox for many channels.** Questions from Discord, Slack, GitHub Issues and Discussions and Telegram all become tickets.
-- **Answers grounded in your knowledge base.** Articles come from uploaded files (PDF, DOCX, CSV, Markdown, ZIP), crawled URLs and GitHub repositories, stored with vector embeddings for semantic search.
+- **One inbox for many channels.** Questions from Discord, Slack, GitHub Issues and Discussions, Telegram, Discourse, Circle and email all become tickets.
+- **Answers grounded in your knowledge base.** Articles come from uploaded files (PDF, DOCX, CSV, Markdown, ZIP), crawled URLs, Notion pages and GitHub repositories, stored with vector embeddings for semantic search.
 - **Two-agent review.** One agent drafts a reply; a separate agent grades the draft against the evidence and gives it a confidence score.
 - **Human approval or automatic replies.** Low-confidence drafts wait in a review queue; teams can let high-confidence answers post automatically per channel.
 - **Ticket workflow.** AI triage (category, severity, priority), SLA deadlines, related-question search, ticket threads, CSV export and an activity log.
