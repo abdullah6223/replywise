@@ -15,7 +15,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "github:backfill-threads": "tsx scripts/backfill-github-comment-threads.ts",
-    "lint:fix": "oxlint --fix"
+    "lint:fix": "oxlint --fix",
+    "verify:stripe-prices": "tsx scripts/verify-stripe-prices.ts"
   },
   "engines": {
     "node": ">=22"
