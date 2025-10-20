@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { createMDX } from "fumadocs-mdx/next";
 import docsNav from "./docs/docs.json" with { type: "json" };
 import { MARKETING_PAGE_PATHS } from "./lib/marketing/website-paths";
 
@@ -98,6 +99,8 @@ const LEGACY_SLUG_OVERRIDES: Record<string, string> = {
 };
 
 const legacyDocPageIds = collectDocPageIds(docsNav);
+
+const withMDX = createMDX();
 
 const nextConfig: NextConfig = {
   async headers() {
@@ -217,4 +220,4 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default nextConfig;
+export default withMDX(nextConfig);
