@@ -1,0 +1,80 @@
+---
+title: Ollama
+description: Run answer generation on a local model through Ollama's OpenAI-compatible API.
+icon: HardDrive
+---
+
+<IntegrationFlow
+  platform="ollama"
+  sourceLogo="channels"
+  sourceLabel="Your channels"
+  source={{
+    title: 'Questions from your channels',
+    text: 'Customers ask in the channels you have connected, such as Slack, Discord, email, or the website widget. Every question goes through the same answering pipeline.',
+  }}
+  trigger={{
+    title: 'Your Ollama server',
+    text: 'In Settings → AI Model you choose the OpenAI-compatible provider, enter your Ollama base URL and model, and leave the key blank. The Replywise server must be able to reach that URL.',
+  }}
+  steps={[
+    { title: 'Find the answer', text: 'The question is matched against your knowledge base using embeddings. They can come from an Ollama embedding model or from OpenAI, whichever you chose.' },
+    { title: 'Draft the answer', text: 'Your Ollama model writes an answer grounded in what was found. This runs on your own hardware.', logo: 'ollama' },
+    { title: 'Review confidence', text: 'The same Ollama model reviews the draft and scores how confident it is. Your confidence threshold decides which path the answer takes.', logo: 'ollama' },
+  ]}
+  outcomes={[
+    { tone: 'info', title: 'Runs on your machine', text: 'Chat requests go to your Ollama server, so there is no per-token charge from a hosted provider.' },
+    { tone: 'info', title: 'Your choice of embeddings', text: 'Keep embeddings local with an Ollama embedding model, or use OpenAI. Only the OpenAI option sends that text off your network.' },
+    { tone: 'info', title: 'Plan requirement', text: 'A custom endpoint needs the Enterprise plan on the hosted service. Self-hosted installs have it by default.' },
+  ]}
+  outcomesLabel="What you control"
+  replyLabel="Answers are generated on your own Ollama server"
+/>
+
+Ollama runs open models on your own machine and exposes an OpenAI-compatible
+API. Replywise talks to it through the **OpenAI-compatible** provider option
+— point it at Ollama's base URL, leave the key blank.
+
+<Warning>
+  The OpenAI-compatible provider (any custom endpoint, Ollama included) is part
+  of **Custom AI model configuration**, which is on the Enterprise plan.
+  Self-hosted deployments have it unconditionally.
+</Warning>
+
+Chat runs locally. Embeddings can too, if you serve an embedding model that
+outputs 1536-dimension vectors (the size the knowledge base stores), or you can
+keep embeddings on OpenAI's hosted API — that's the only part that would leave
+your network.
+
+## 1. Run Ollama
+
+```bash
+ollama serve
+ollama pull llama3.2
+ollama pull <your-1536-dimension-embedding-model>   # only if you want local embeddings
+```
+
+## 2. Configure in Replywise
+
+1. **Settings → AI Model → Edit** (owner or admin).
+2. **Chat provider:** OpenAI-compatible.
+3. **Base URL:** `http://localhost:11434/v1` — or, when Replywise runs in
+   Docker on macOS/Windows, `http://host.docker.internal:11434/v1`.
+4. **Model ID:** `llama3.2` (or whatever you pulled).
+5. **API key:** leave blank — Ollama doesn't authenticate.
+6. **Embeddings:** either
+   - **OpenAI-compatible** with the same base URL and an embedding model that outputs 1536 dimensions, or
+   - **OpenAI** with a hosted key (embeddings then leave your network).
+7. Click **Test connection** — it will fail if the base URL isn't reachable
+   from the Replywise server — then **Save**.
+
+<Warning>
+  Ollama runs on the host, not inside the Replywise container. Use
+  `host.docker.internal` (Mac/Windows) or the host's LAN IP (Linux) as the base
+  URL, not `localhost`.
+</Warning>
+
+## Related
+
+- [Self-hosted installs](/docs/product/ai-config#self-hosted-installs) — the
+  server key, embedding size and re-indexing for self-hosters
+- [AI Model settings](/docs/product/ai-config)

@@ -1,0 +1,76 @@
+---
+title: OpenAI
+description: Use your own OpenAI API key for answer generation and embeddings.
+icon: Cpu
+---
+
+<IntegrationFlow
+  platform="openai"
+  sourceLogo="channels"
+  sourceLabel="Your channels"
+  source={{
+    title: 'Questions from your channels',
+    text: 'Customers ask in the channels you have connected, such as Slack, Discord, email, or the website widget. Every question goes through the same answering pipeline.',
+  }}
+  trigger={{
+    title: 'Your API key',
+    text: 'In Settings → AI Model you choose OpenAI, pick a model, and paste your key. One key covers both answers and knowledge-base search. Without a key, a hosted workspace runs on included AI usage and a self-hosted install uses the key in its environment.',
+  }}
+  steps={[
+    { title: 'Find the answer', text: 'The question is turned into an embedding and matched against your knowledge base. Embeddings use text-embedding-3-small by default.', logo: 'openai' },
+    { title: 'Draft the answer', text: 'Your chosen OpenAI model writes an answer grounded in what was found.', logo: 'openai' },
+    { title: 'Review confidence', text: 'The same model reviews the draft and scores how confident it is. Your confidence threshold decides which path the answer takes.', logo: 'openai' },
+  ]}
+  outcomes={[
+    { tone: 'info', title: 'Your own usage', text: 'With your own key, usage is billed to your OpenAI account and the included-usage limit no longer applies.' },
+    { tone: 'info', title: 'Included usage', text: 'Without a key, a hosted workspace uses included AI usage up to a limit. That part of AI pauses when the limit is reached.' },
+    { tone: 'info', title: 'Model choice', text: 'You pick the answer model and the embedding model. Test connection checks the key and model before you save.' },
+  ]}
+  outcomesLabel="What you control"
+  replyLabel="Usage is billed to your OpenAI account"
+/>
+
+OpenAI is the default AI provider. It's the one provider that covers **both**
+jobs Replywise needs a model for — generating answers and creating the
+embeddings that power knowledge-base search — with a single key.
+
+A hosted workspace without its own key runs on included AI usage, up to a
+limit. Adding your own key here removes that limit and bills usage to your
+OpenAI account. A self-hosted deployment uses the `OPENAI_API_KEY` from its
+environment until an org overrides it here.
+
+## 1. Get an API key
+
+In the [OpenAI dashboard](https://platform.openai.com/api-keys), create a
+secret key. It starts with `sk-`. You'll also need billing set up on the
+OpenAI account.
+
+## 2. Configure in Replywise
+
+1. **Settings → AI Model → Edit** (owner or admin).
+2. **Chat provider:** OpenAI.
+3. **Model ID:** e.g. `gpt-6.1-terra`, `gpt-6-luna`, `gpt-5.5` — the field
+   suggests current options.
+4. **API key:** paste your `sk-` key.
+5. **Embeddings:** leave the provider on OpenAI. The same key is used — no
+   second key to enter.
+6. Click **Test connection** to confirm the key and model work, then **Save**.
+
+## Models
+
+| Use | Good choices |
+|---|---|
+| Answer quality | `gpt-6.1-terra`, `gpt-5.6-sol` |
+| Cheaper / faster | `gpt-6-luna`, `gpt-5.6-luna`, `gpt-5.4-mini`, `gpt-5.4-nano` |
+| Reasoning | `gpt-5.5-pro` |
+| Embeddings | `text-embedding-3-small` (default), `text-embedding-3-large` |
+
+See the [OpenAI models list](https://platform.openai.com/docs/models) for the
+full catalogue and pricing.
+
+## Related
+
+- [AI Model settings](/docs/product/ai-config) — trial, provider switching, and
+  the test-connection check
+- [Self-hosted installs](/docs/product/ai-config#self-hosted-installs) — the
+  environment-level server key

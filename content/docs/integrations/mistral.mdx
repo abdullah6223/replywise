@@ -1,0 +1,75 @@
+---
+title: Mistral
+description: Use Mistral's models for answer generation. Knowledge-base processing (embeddings) runs on OpenAI.
+icon: Cpu
+---
+
+<IntegrationFlow
+  platform="mistral"
+  sourceLogo="channels"
+  sourceLabel="Your channels"
+  source={{
+    title: 'Questions from your channels',
+    text: 'Customers ask in the channels you have connected, such as Slack, Discord, email, or the website widget. Every question goes through the same answering pipeline.',
+  }}
+  trigger={{
+    title: 'Your API key',
+    text: 'In Settings → AI Model you choose Mistral, pick a model, and paste your Mistral key. Only the answering steps use it.',
+  }}
+  steps={[
+    { title: 'Find the answer', text: 'Searching your knowledge base uses OpenAI embeddings. On a hosted plan this runs on your included AI usage unless you add an OpenAI key. Self-hosted installs enter an OpenAI key.', logo: 'openai' },
+    { title: 'Draft the answer', text: 'Your chosen Mistral model writes an answer grounded in what was found.', logo: 'mistral' },
+    { title: 'Review confidence', text: 'The same Mistral model reviews the draft and scores how confident it is. Your confidence threshold decides which path the answer takes.', logo: 'mistral' },
+  ]}
+  outcomes={[
+    { tone: 'info', title: 'Billed to you', text: 'Answer drafting and review are billed to your Mistral account.' },
+    { tone: 'info', title: 'Included usage for search', text: 'Knowledge-base search on a hosted plan uses included AI usage until you add an OpenAI key. Adding one removes that limit.' },
+    { tone: 'info', title: 'Model choice', text: 'You pick the model, and Refresh models lists what your account offers. Test connection checks the key before you save.' },
+  ]}
+  outcomesLabel="What you control"
+  replyLabel="Answering is billed to your Mistral account"
+/>
+
+Mistral's models generate the answers Replywise drafts. This integration covers **chat only** for now.
+
+**OpenAI is the only provider that can handle knowledge-base processing
+(embeddings) today.** Google Gemini and Mistral are coming soon. On a hosted
+plan, knowledge-base processing runs on your plan's included AI usage until you
+add an OpenAI key under **Embeddings**, which removes that limit. Self-hosted
+installs need an OpenAI key (or a custom embedding endpoint).
+
+Available on every plan. Usage bills to your Mistral account.
+
+## 1. Get an API key
+
+Create a key in [La Plateforme](https://console.mistral.ai/api-keys). Add a
+payment method for production use.
+
+## 2. Configure in Replywise
+
+1. **Settings → AI Model → Edit** (owner or admin).
+2. **Chat provider:** Mistral.
+3. **Model ID:** e.g. `mistral-large-latest`, `mistral-small-latest`,
+   `codestral-latest` — the field suggests current options; see the
+   [Mistral models list](https://docs.mistral.ai/getting-started/models/models_overview/)
+   for exact names.
+4. **API key:** paste your Mistral key.
+5. **Embeddings:** leave the provider on OpenAI. On a hosted plan the
+   **OpenAI API key** field is optional: leave it blank to use included AI
+   usage for knowledge-base processing, or add a key to remove the limit.
+   Self-hosted installs must enter one, or knowledge-base search and KB
+   imports fail after you save. Replywise tells you if it's missing.
+6. Click **Test connection**, then **Save**.
+
+## Models
+
+| Use | Choice |
+|---|---|
+| Best answers | `mistral-large-latest` |
+| Cheaper | `mistral-small-latest` |
+| Code-heavy KBs | `codestral-latest` |
+
+## Related
+
+- [AI Model settings](/docs/product/ai-config)
+- [OpenAI integration](/docs/integrations/openai) — for an OpenAI embedding key

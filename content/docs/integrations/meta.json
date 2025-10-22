@@ -10,9 +10,13 @@
     "email",
     "---Knowledge sources---",
     "github",
+    "notion",
     "---AI providers---",
+    "openai",
     "anthropic",
     "google-gemini",
-    "groq"
+    "groq",
+    "mistral",
+    "ollama"
   ]
 }
