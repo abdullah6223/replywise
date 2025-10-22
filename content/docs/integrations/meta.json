@@ -1,0 +1,12 @@
+{
+  "title": "Integrations",
+  "icon": "Plug",
+  "defaultOpen": true,
+  "pages": [
+    "---Channels---",
+    "discord",
+    "circle",
+    "---AI providers---",
+    "anthropic"
+  ]
+}

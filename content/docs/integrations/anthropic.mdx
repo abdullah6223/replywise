@@ -1,0 +1,77 @@
+---
+title: Anthropic
+description: Use Anthropic's Claude models for answer generation. Knowledge-base processing (embeddings) runs on OpenAI.
+icon: Cpu
+---
+
+<IntegrationFlow
+  platform="anthropic"
+  sourceLogo="channels"
+  sourceLabel="Your channels"
+  source={{
+    title: 'Questions from your channels',
+    text: 'Customers ask in the channels you have connected, such as Slack, Discord, email, or the website widget. Every question goes through the same answering pipeline.',
+  }}
+  trigger={{
+    title: 'Your API key',
+    text: 'In Settings → AI Model you choose Anthropic, pick a model, and paste your Anthropic key. Only the answering steps use it.',
+  }}
+  steps={[
+    { title: 'Find the answer', text: 'Searching your knowledge base uses OpenAI embeddings, because Anthropic does not offer embeddings. On a hosted plan this runs on your included AI usage unless you add an OpenAI key. Self-hosted installs enter an OpenAI key.', logo: 'openai' },
+    { title: 'Draft the answer', text: 'Your chosen Anthropic model writes an answer grounded in what was found.', logo: 'anthropic' },
+    { title: 'Review confidence', text: 'The same Anthropic model reviews the draft and scores how confident it is. Your confidence threshold decides which path the answer takes.', logo: 'anthropic' },
+  ]}
+  outcomes={[
+    { tone: 'info', title: 'Billed to you', text: 'Answer drafting and review are billed to your Anthropic account.' },
+    { tone: 'info', title: 'Included usage for search', text: 'Knowledge-base search on a hosted plan uses included AI usage until you add an OpenAI key. Adding one removes that limit.' },
+    { tone: 'info', title: 'Model choice', text: 'You pick the model, and Refresh models lists what your account offers. Test connection checks the key before you save.' },
+  ]}
+  outcomesLabel="What you control"
+  replyLabel="Answering is billed to your Anthropic account"
+/>
+
+Anthropic's Claude models generate the answers Replywise drafts. Claude handles **chat only**, because Anthropic doesn't offer embeddings.
+
+**OpenAI is the only provider that can handle knowledge-base processing
+(embeddings) today.** Google Gemini and Mistral are coming soon. On a hosted
+plan, knowledge-base processing runs on your plan's included AI usage until you
+add an OpenAI key under **Embeddings**, which removes that limit. Self-hosted
+installs need an OpenAI key (or a custom embedding endpoint).
+
+Available on every plan. Usage bills to your Anthropic account.
+
+## 1. Get an API key
+
+In the [Anthropic Console](https://console.anthropic.com/settings/keys),
+create a key. Make sure the workspace has credit or billing configured.
+
+## 2. Configure in Replywise
+
+1. **Settings → AI Model → Edit** (owner or admin).
+2. **Chat provider:** Anthropic.
+3. **Model ID:** e.g. `claude-sonnet-4-6`, `claude-haiku-4-5-20251001` — the
+   field suggests current options; see the
+   [Claude models list](https://docs.anthropic.com/en/docs/about-claude/models)
+   for exact names.
+4. **API key:** paste your Anthropic key.
+5. **Embeddings:** leave the provider on OpenAI. On a hosted plan the
+   **OpenAI API key** field is optional: leave it blank to use included AI
+   usage for knowledge-base processing, or add a key to remove the limit.
+   Self-hosted installs must enter one, or knowledge-base search and KB
+   imports fail after you save. Replywise tells you if it's missing.
+6. Click **Test connection**. It checks the Claude key, and it checks the
+   OpenAI embedding key separately if you entered one (otherwise it tells you
+   knowledge-base processing will use included AI usage). Then **Save**.
+
+## Models
+
+| Use | Choice |
+|---|---|
+| Best answers | `claude-sonnet-4-6`, `claude-opus-4-8` |
+| Fast / cheap | `claude-haiku-4-5-20251001` |
+
+## Related
+
+- [AI Model settings](/docs/product/ai-config) — how embeddings and included
+  usage work, and how provider switching is handled
+- [OpenAI integration](/docs/integrations/openai) — for an OpenAI embedding key
