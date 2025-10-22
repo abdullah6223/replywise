@@ -8,7 +8,11 @@
     "discourse",
     "circle",
     "email",
+    "---Knowledge sources---",
+    "github",
     "---AI providers---",
-    "anthropic"
+    "anthropic",
+    "google-gemini",
+    "groq"
   ]
 }
