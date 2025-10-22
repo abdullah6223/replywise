@@ -1,0 +1,128 @@
+---
+title: Discourse
+description: Connect a Discourse forum to Replywise so new topics and replies in watched categories flow through the same confidence-gated support pipeline as every other channel.
+icon: MessagesSquare
+---
+
+<IntegrationFlow
+  platform="discourse"
+  source={{
+    title: 'Your Discourse forum',
+    text: 'A member starts a topic or replies in one of the categories you chose to watch. A dedicated bot account, which you create, posts the answers.',
+  }}
+  trigger={{
+    title: 'Signed webhook',
+    text: 'Discourse sends a signed event to Replywise the moment a topic or post is created. There is no polling.',
+  }}
+  steps={[
+    { title: 'Create ticket', text: 'The post becomes a ticket with its topic attached, and a later post in a topic that already has a ticket is added to that ticket. Posts from the bot account itself, posts under 10 characters, and posts in categories you did not choose are skipped.' },
+    { title: 'Find the answer', text: 'Replywise searches your knowledge base for what is relevant to the question and drafts an answer grounded in it.' },
+    { title: 'Review confidence', text: 'A separate AI reviews the draft and scores how confident it is. Your confidence threshold, 0.8 by default, decides which path the answer takes.' },
+  ]}
+  outcomes={[
+    { tone: 'post', title: 'Posted in the topic', text: 'With Automatic Deflections on and a confident answer, the bot account replies in the topic on its own.' },
+    { tone: 'review', title: 'Held as a draft', text: 'Automatic Deflections is off by default, so even a confident answer waits on your dashboard. Your team approves, edits, or dismisses it, and the topic gets no automatic reply until you do.' },
+    { tone: 'escalate', title: 'Your team is pulled in', text: 'Below the threshold, the escalation user you set is mentioned in the topic so a person takes over.' },
+  ]}
+  replyLabel="Replies and escalation mentions appear in the same Discourse topic"
+/>
+
+## Overview
+
+Discourse is the forum platform many open-source projects, product communities, and education communities run as their primary support surface. Replywise ingests new topics and posts from the categories you choose, runs each one through the standard triage → retrieval → confidence-review → escalation pipeline, and posts grounded answers back into the topic as a bot user.
+
+The connection is per-organization: you create an API key inside your own Discourse admin, scoped to a bot account, and it is stored encrypted in your Replywise database. There is no shared platform-wide app and no OAuth flow. Inbound events arrive over a Discourse webhook — no polling.
+
+<Callout type="info">
+  **Automatic Deflections** is off by default, same as every other channel. While it's off, even a high-confidence answer is held as a draft on the dashboard awaiting Approve/Edit/Dismiss, and the topic gets no automatic reply. Turn it on in **Integrations → Discourse → Edit → Automatic Deflections → Save** once you've reviewed enough approved drafts to trust answers going out unsupervised.
+</Callout>
+
+---
+
+## Setup
+
+### 1. Create a bot user
+
+In Discourse, create (or pick) a dedicated account for Replywise to post as — for example `replywise-bot`. Give it Trust Level 1 or higher so it can reply in the categories you want covered.
+
+### 2. Create an API key
+
+Go to **Admin → API → New API Key**:
+
+- **User Level:** *Single User*, set to the bot account from step 1 (or *All Users* if you prefer)
+- **Scope:** *Granular* is fine — the integration needs `web_hooks` (read/write), `posts` (write), and `categories` (read). *Global* also works.
+
+Copy the key — Discourse only shows it once.
+
+### 3. Connect in Replywise
+
+Go to **Integrations → Discourse** and fill in:
+
+| Field | Value |
+| --- | --- |
+| Discourse site URL | Your forum's base URL, e.g. `https://forum.example.com`. Must be a public `https://` address, and a forum can be connected to one Replywise workspace at a time |
+| API key | The key from step 2 |
+| Bot username | The account from step 1 |
+| Watched category IDs | Numeric category IDs, comma-separated — leave blank to watch every category |
+
+Click **Update** to save.
+
+<Tip>
+  A category's numeric ID is in its URL: `/c/support/6` is category `6`. It's also shown on the category's settings page.
+</Tip>
+
+### 4. Register the webhook
+
+After saving, click **Register webhook** on the Discourse card. Replywise calls your forum's admin API to create (or update) a webhook that points at `/api/discourse/webhook`, subscribed to topic and post events, signed with a per-organization secret.
+
+If your Discourse instance blocks admin API webhook management, the card also shows the **Payload URL** and **Secret** so you can add the webhook by hand in **Admin → API → Webhooks** — subscribe it to the **Topic Event** and **Post Event** groups, set **Content type** to `application/json`, and leave **Check TLS certificate** on.
+
+<Note>
+  Re-register (or update the manual webhook's URL) any time your app's public URL (`AUTH_URL`) changes.
+</Note>
+
+### 5. Set an escalation user (optional)
+
+Enter a Discourse **username without the `@`** in **Escalation user** to have that person mentioned in the topic when AI confidence falls below your threshold.
+
+### 6. Set the confidence threshold
+
+**Confidence threshold** (0–1, default `0.8`) is the score below which an answer is treated as low-confidence — held as a draft, or (with Automatic Deflections on) posted alongside the escalation mention instead of as a full answer.
+
+---
+
+## Environment variables reference
+
+Discourse is configured entirely per-organization through the Settings UI. There is no forum-wide credential and no environment variable to set.
+
+---
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Webhook calls return 401">
+    Every inbound webhook is verified two ways: the `X-Discourse-Instance` header must match the site URL you saved, and the payload's `X-Discourse-Event-Signature` must be a valid HMAC of the body under the secret Replywise generated. A 401 means one of those drifted — re-save the integration to mint a fresh secret, then click **Register webhook** again (or update the secret on the manual webhook).
+  </Accordion>
+  <Accordion title="Register webhook fails with a 502">
+    Registration needs the API key to be able to read and write `web_hooks`. If the key is scoped *Granular* without the `web_hooks` scope, or scoped to a non-admin single user, Discourse refuses the call. Recreate the key with the `web_hooks` scope (or a *Global* key) and try again — or add the webhook manually using the URL and secret shown on the card.
+  </Accordion>
+  <Accordion title="New topics aren't creating tickets">
+    Check the webhook is **Active** in **Admin → API → Webhooks** and that its recent deliveries show `200`. If you set **Watched category IDs**, a topic in any other category is ignored on purpose — clear the field to watch everything. Posts shorter than 10 characters and posts by the bot user itself are also skipped.
+  </Accordion>
+  <Accordion title="The bot's replies are rejected by Discourse">
+    The API key must be allowed to post as the **Bot username** you configured. A *Single User* key is locked to that one account — make sure it's the same username. The bot account also needs enough trust level to reply in the target category.
+  </Accordion>
+  <Accordion title="Answers post twice or loop">
+    Replywise skips any post whose author matches the configured **Bot username**, so its own replies never re-enter the pipeline. If you see a loop, the bot username in Settings doesn't exactly match the account the API key posts as — fix the username and re-save.
+  </Accordion>
+  <Accordion title="Escalation user isn't mentioned">
+    The mention only fires when a post's confidence score is below **Confidence threshold**. If answers are landing above the bar every time, there's nothing to escalate — lower the threshold, or check the ticket's score on the dashboard.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Related
+
+- [Slack integration](/docs/integrations/slack) — the closest existing channel in setup shape
+- [Knowledge base](/docs/product/knowledge-gaps) — how the AI decides it doesn't have a confident answer

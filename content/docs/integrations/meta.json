@@ -5,7 +5,9 @@
   "pages": [
     "---Channels---",
     "discord",
+    "discourse",
     "circle",
+    "email",
     "---AI providers---",
     "anthropic"
   ]
