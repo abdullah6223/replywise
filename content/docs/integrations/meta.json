@@ -5,6 +5,7 @@
   "pages": [
     "---Channels---",
     "discord",
+    "slack",
     "discourse",
     "circle",
     "email",
@@ -17,6 +18,8 @@
     "google-gemini",
     "groq",
     "mistral",
-    "ollama"
+    "ollama",
+    "---Billing---",
+    "stripe"
   ]
 }
