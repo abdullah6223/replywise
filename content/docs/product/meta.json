@@ -1,0 +1,13 @@
+{
+  "title": "Product guide",
+  "icon": "LayoutDashboard",
+  "defaultOpen": true,
+  "pages": [
+    "---Answer customers---",
+    "ai-deflection",
+    "---Improve over time---",
+    "analytics",
+    "---Manage your workspace---",
+    "ai-config"
+  ]
+}

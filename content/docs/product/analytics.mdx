@@ -1,0 +1,91 @@
+---
+title: Analytics
+description: Understand automated answers, feedback, response times, and estimated savings.
+icon: ChartNoAxesColumn
+---
+
+Analytics shows what the AI resolves on its own, where it hesitates, and how much staff time that gives back to your team. Open **Analytics** from the **Monitor** group in the sidebar. It is available on every plan; the customer satisfaction panel is the one part that needs Pro or Enterprise.
+
+<Hotspots
+  shot="analytics"
+  only={['time-saved', 'deflection-rate', 'questions-handled', 'trend']}
+  notes={{
+    'time-saved': 'An estimate of staff time returned to your team, with a dollar figure based on your own assumptions.',
+    'deflection-rate': 'The share of answered questions the AI resolved without a person stepping in.',
+    'questions-handled': 'The number of tickets included in the metrics, plus the minutes-per-deflection assumption in use.',
+    trend: 'A day-by-day view of answered and automatically resolved questions.',
+  }}
+/>
+
+<Callout type="info">
+  The screenshot shows a demo workspace with sample data. Your own numbers will differ.
+</Callout>
+
+## Read the headline numbers
+
+The three cards at the top summarize the period at a glance.
+
+| Metric | What it tells you |
+| --- | --- |
+| Staff time saved | Estimated hours returned to your team, with a dollar value. See [Estimated savings](#estimated-savings). |
+| Deflection rate | Automatically resolved questions divided by answered questions. A *deflection* is a question the AI resolved without escalating to a person. |
+| Questions handled | Tickets counted in these metrics. |
+
+Duplicate tickets, bug reports, and feature requests are left out of the deflection rate, the questions-handled count, and the trend. Bug reports and feature requests go to a person for review, so counting them would make the AI look worse for doing the right thing. This matches the deflection rate on the [Dashboard](/docs/product/dashboard).
+
+## Follow the trend
+
+**Deflection trend** lists the last 14 days, one row per day that had answered questions. Each row shows how many answered questions were resolved automatically (for example, "4/6 deflected"). A day with no answered questions does not appear.
+
+**Trending topics** counts tickets by category, most common first. It counts every category, including bug reports and feature requests, and leaves out only duplicates. Use it to see what your customers ask about most.
+
+## Check response times
+
+The **SLA & responsiveness** panel reports against the response targets you set under **Settings → General → SLA Configuration**.
+
+| Metric | What it measures |
+| --- | --- |
+| Response SLA met | Responses that met their target divided by responses with an evaluated target. Shows a dash until there is one. |
+| Avg. time to first response | The average delay, in minutes, before the first response was recorded. |
+| SLA breaches | Response and resolution targets that were missed. |
+
+## Estimated savings
+
+**Staff time saved** is an estimate: automatically resolved questions multiplied by minutes per ticket, divided by 60. The dollar figure multiplies those hours by your staff hourly rate.
+
+Owners and admins set both assumptions under **Settings → General → Analytics → ROI Assumptions**:
+
+- **Minutes per ticket:** average staff time to answer one question manually (1 to 480). The default is 10.
+- **Staff hourly rate ($):** fully loaded cost per hour for your support staff (1 to 10,000). The default is 50.
+
+<Callout type="warn">
+  These figures are calculated assumptions, not time-tracking records or measured payroll savings. Review both assumptions before using the estimates in a business case.
+</Callout>
+
+## Judge answer quality
+
+**Answer quality by category** appears once at least one automatically answered question exists. It uses the thumbs-up and thumbs-down votes people leave on automatically answered questions, grouped by topic.
+
+| Column | Meaning |
+| --- | --- |
+| Deflected | Automatically answered questions in the category. |
+| Thumbs up / down | Questions whose votes came out positive or negative overall. |
+| Approval | Positive questions divided by all questions that received a positive or negative result. Shows a dash when there is no feedback yet. |
+
+Approval is colored green at 70% or more, amber from 40%, and red below that. Questions with no feedback do not count toward approval, so a high number from a handful of votes says little.
+
+## Customer satisfaction
+
+The CSAT panel reports the average rating out of 5, the total number of ratings, and the count at each score. It is available on **Pro and Enterprise**; on other plans the panel offers an upgrade link instead. See [Customer satisfaction](/docs/product/csat).
+
+## Find documentation work
+
+**Documentation gaps** lists resolved or closed how-to and documentation tickets that have not been promoted to the knowledge base, newest first, up to 20. Open a ticket, check the explanation, and promote it if it will help answer future questions.
+
+## Where to go next
+
+<Cards>
+  <Card icon="Star" title="Customer satisfaction" href="/docs/product/csat">Read ratings alongside answer feedback.</Card>
+  <Card icon="SearchX" title="Knowledge gaps" href="/docs/product/knowledge-gaps">Find the questions your knowledge base cannot answer yet.</Card>
+  <Card icon="Bot" title="Automatic replies" href="/docs/product/ai-deflection">See how the AI decides when to answer on its own.</Card>
+</Cards>
