@@ -1,0 +1,100 @@
+---
+title: What is Replywise?
+description: Prepare and review answers from your documentation across connected support channels.
+icon: Sparkles
+---
+
+Replywise turns your documentation into support answers wherever your community asks. It collects questions from connected channels, drafts an answer from your workspace knowledge, and has a separate AI review the draft before anything goes out. Your team controls which channels can send qualifying replies automatically, and everything else waits for a person.
+
+It works with developer, art, crypto, course, membership, and general-interest communities. You can also add the [chat widget](/docs/product/chat-widget) to any website or documentation site that supports custom JavaScript.
+
+<LoopIllustration />
+
+<Screenshot
+  shot="ticket-detail"
+  caption="An auto-answered ticket: the original question, the drafted reply, and the reviewer's confidence score."
+/>
+
+## How it works
+
+1. **Receive the question.** A message in a connected channel becomes a ticket with its source attached.
+2. **Retrieve knowledge.** Replywise searches relevant sources for material to answer the question. The public widget uses published knowledge.
+3. **Draft and review.** One AI step prepares the answer; another checks it against the available evidence.
+4. **Send or review manually.** Automatic replies must be enabled and meet the configured confidence threshold. Other drafts remain available to your team.
+5. **Maintain knowledge.** Promote useful resolved answers and update articles as your product changes.
+
+<Callout type="warn" title="Confidence is not correctness">
+  A confidence score is an AI assessment, not a guarantee that an answer is correct. Test representative questions before enabling automatic replies.
+</Callout>
+
+## Where it runs
+
+Connect the places your community already asks. Select a logo to open its setup guide.
+
+<div className="not-prose my-6 flex flex-wrap gap-4">
+  <a href="/docs/integrations/discord" aria-label="Discord setup guide"><IntegrationLogo name="discord" size={56} /></a>
+  <a href="/docs/integrations/slack" aria-label="Slack setup guide"><IntegrationLogo name="slack" size={56} /></a>
+  <a href="/docs/integrations/discourse" aria-label="Discourse setup guide"><IntegrationLogo name="discourse" size={56} /></a>
+  <a href="/docs/integrations/circle" aria-label="Circle setup guide"><IntegrationLogo name="circle" size={56} /></a>
+  <a href="/docs/integrations/github" aria-label="GitHub setup guide"><IntegrationLogo name="github" size={56} /></a>
+  <a href="/docs/integrations/telegram" aria-label="Telegram setup guide"><IntegrationLogo name="telegram" size={56} /></a>
+  <a href="/docs/integrations/email" aria-label="Email setup guide"><IntegrationLogo name="email" size={56} /></a>
+  <a href="/docs/integrations/google-chat" aria-label="Google Chat setup guide"><IntegrationLogo name="google-chat" size={56} /></a>
+  <a href="/docs/product/chat-widget" aria-label="Website widget setup guide"><IntegrationLogo name="channels" size={56} /></a>
+</div>
+
+## Who it is for
+
+- **Community managers** who answer the same questions in Discord, Slack, Discourse, or Circle every week and want the repeat questions handled first.
+- **Open-source maintainers** who field questions in GitHub issues and discussions and want drafts grounded in their docs.
+- **Support and success teams** who want one queue for chat, email, and widget conversations, with a person always able to step in.
+- **Course, membership, and creator businesses** who want members to get answers from their own material at any hour.
+
+## Capabilities
+
+| Feature | What it does |
+| --- | --- |
+| AI deflection | Sends qualifying answers automatically when enabled for a channel. |
+| Multi-channel ingest | Collects questions from Discord, Slack, Discourse, Circle, GitHub, Telegram, email, Google Chat, and a website widget. |
+| Knowledge base | Imports URLs, files, GitHub content, Notion pages, and promoted resolutions. |
+| Knowledge gaps | Identifies questions that may need better documentation; Pro and Enterprise. |
+| Human escalation | Routes follow-up notifications to configured recipients; Pro and Enterprise. |
+| CSAT scoring | Records customer ratings on supported channels; Pro and Enterprise. |
+| Simulation mode | Tests the answer workflow without sending live replies; Pro and Enterprise. |
+| Ticket list | Collects requests, drafts, replies, and status in one queue. |
+| Multi-provider AI | Uses your supported provider account; custom endpoints require Enterprise or self-hosting. |
+| Website widget | Adds support chat and lead capture to your site. |
+| Billing | Hosted plans with monthly answer allowances, or a self-hosted edition without subscription fees. |
+
+## Ingest channels
+
+| Channel | How it connects | What it ingests |
+| --- | --- | --- |
+| Discord | OAuth installation (cloud) or bot token (self-host) | Text channel messages, forum thread posts, and replies |
+| Slack | OAuth installation or polling mode | Channel messages |
+| Discourse | REST API + webhook | Topics and posts in watched categories |
+| Circle | API token | Space posts and comments |
+| GitHub | GitHub App webhook | Issues, issue comments, Discussions, discussion comments |
+| Telegram | Webhook via bot token | Messages in configured chats |
+| Email | Provider-agnostic inbound webhook | Any inbound email forwarded to the webhook URL |
+| Website widget | Embeddable `<script>` tag | Widget chat sessions |
+| Google Chat | Connect-code space pairing | Messages in the paired space |
+
+## Choose a deployment
+
+<Cards>
+  <Card icon="Cloud" title="Cloud" href="/docs/quickstart-cloud">Sign in with Google for a 14-day free trial of every feature. No card is required. AI usage is included up to a limit; connect your own model provider to remove it, and that provider bills you directly.</Card>
+  <Card icon="Server" title="Self-hosted" href="/docs/quickstart-self-host">Operate the application and channel services on your infrastructure under AGPL-3.0. Your team manages setup, backups, updates, and the services you connect. External model and channel providers still process relevant content.</Card>
+</Cards>
+
+## Where to go next
+
+<Cards>
+  <Card icon="Rocket" title="Cloud quickstart" href="/docs/quickstart-cloud">Start a trial, connect a channel, and see a first draft.</Card>
+  <Card icon="HardDrive" title="Self-host quickstart" href="/docs/quickstart-self-host">Run Replywise on your own infrastructure.</Card>
+  <Card icon="LayoutDashboard" title="Product guide" href="/docs/product/dashboard">Learn the dashboard, tickets, knowledge base, and analytics.</Card>
+  <Card icon="Plug" title="Integrations" href="/docs/integrations/discord">Set up each channel and knowledge source.</Card>
+  <Card icon="Receipt" title="Billing plans" href="/docs/reference/billing-plans">Compare plans, allowances, and the trial.</Card>
+</Cards>
+
+For a machine-readable overview, use [/llms.txt](/llms.txt). The full documentation is available at [/llms-full.txt](/llms-full.txt).

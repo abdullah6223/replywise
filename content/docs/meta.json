@@ -1,6 +1,8 @@
 {
   "title": "Replywise Docs",
   "pages": [
+    "---Get started---",
+    "introduction",
     "---Use Replywise---",
     "integrations"
   ]
