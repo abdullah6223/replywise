@@ -3,11 +3,16 @@
   "icon": "LayoutDashboard",
   "defaultOpen": true,
   "pages": [
+    "---Start here---",
+    "dashboard",
     "---Answer customers---",
     "ai-deflection",
+    "escalation",
+    "csat",
     "---Improve over time---",
     "analytics",
     "---Manage your workspace---",
-    "ai-config"
+    "ai-config",
+    "billing"
   ]
 }

@@ -1,0 +1,81 @@
+---
+title: Dashboard
+description: Operate support, knowledge, and AI performance from one workspace.
+icon: LayoutDashboard
+---
+
+The dashboard is your workspace's home screen. It shows what needs attention right now, how the AI is doing, and whether any conversation is running past its response target.
+
+<Hotspots
+  shot="dashboard"
+  only={['navigation', 'stat-cards', 'auto-answered', 'open-tickets', 'sla-status']}
+  notes={{
+    navigation: 'Pages are grouped by the job they support: Monitor, Support, Improve, and Configure.',
+    'stat-cards': 'Live counts for your tickets. Select any card to open the matching filtered list.',
+    'auto-answered': 'Every question the AI resolved automatically, without a person stepping in.',
+    'open-tickets': 'Unresolved questions, oldest first, so nothing sits unanswered.',
+    'sla-status': 'Tickets past their configured response target, kept apart from the rest of the queue.',
+  }}
+/>
+
+## Activity
+
+When a customer replies on a ticket your team hasn't opened since, the dashboard shows an **Activity** panel above the stat cards. It lists those tickets, most recent reply first, each with its number, summary, who wrote, which channel, and when. Select one to open it. **View all** opens the ticket list filtered to new activity and sorted by latest activity. Once a ticket is opened it leaves the panel, and the panel disappears when nothing is waiting.
+
+The bell in the top bar shows the same replies as notifications, and a push notification is sent if browser notifications are on. See [Know when a customer replies](/docs/product/tickets#know-when-a-customer-replies).
+
+## Stat cards
+
+| Card | What it shows | Opens |
+|---|---|---|
+| Auto-Answered | Every question the AI resolved automatically | Tickets filtered to auto-answered |
+| Deflection rate | Deflected / Answered — your key efficiency metric | Analytics |
+| Open | Questions that still need attention | Open tickets |
+| In Progress | Questions currently being handled | In-progress tickets |
+| Resolved | Completed support conversations | Resolved tickets |
+| Needs Review | Answers waiting for a human decision | Tickets filtered to needs review |
+| AI Drafts Pending | Draft replies ready to review | Tickets filtered to pending drafts |
+| SLA Breaches | Tickets past their configured response target | Tickets filtered to SLA breaches |
+
+Select any card to jump to the matching view. The ticket list shows the same tickets the card counts, and a "Filtered by" label appears above the list while a card filter is active. Pressing **Filter** keeps the card filter along with your status, priority, and category choices. Select **Clear card filter** to drop only the card filter.
+
+<Callout type="info">
+  The Deflection rate card uses the same figure as the Analytics page, which leaves out bug reports and feature requests. Auto-Answered counts every deflected ticket, so the two numbers won't always line up with each other.
+</Callout>
+
+Tickets marked `duplicate` are left out of every stat card, the deflection rate, category breakdown, and SLA figures, so a repeated question is only counted once. Mark a ticket as duplicate from its status form on the ticket page.
+
+## Deflection rate
+
+A deflection happens when the AI answers a question with confidence above your threshold (default 0.8) and the user doesn't escalate to a human. Higher = less manual support work.
+
+Tickets classified as `bug` are excluded from this metric entirely — the knowledge base can't contain a fix that doesn't exist yet, so declining to auto-answer a bug report is correct behaviour, not a miss. Deflection rate reflects how well Replywise handles questions the knowledge base can actually answer.
+
+## Quick actions
+
+The dashboard surfaces quick links to the most common tasks: adding knowledge, reviewing deflection trends, configuring AI behavior, and reviewing the generated FAQ. The open-ticket panel prioritizes unresolved work, while the SLA panel separates time-sensitive conversations from the rest of the queue.
+
+## Live updates
+
+Tickets, draft availability, and team membership update while the dashboard is open. If the connection is interrupted, the page reconnects and refreshes. Returning to a background tab also refreshes its data.
+
+Self-hosted operators using a pooled database connection should configure `DIRECT_DATABASE_URL` for live updates. See [environment variables](/docs/self-hosting/environment-variables).
+
+## Navigation
+
+The workspace sidebar groups pages by the job they support:
+
+- **Monitor:** Dashboard, Analytics, and Simulation
+- **Support:** Tickets and widget Leads
+- **Improve:** Knowledge Base, FAQ, and Knowledge Gaps
+- **Configure:** Billing and Settings
+
+On mobile, the same navigation is available from the menu button in the top bar.
+
+## Where to go next
+
+<Cards>
+  <Card icon="Ticket" title="Tickets" href="/docs/product/tickets">Work through open questions and review AI drafts.</Card>
+  <Card icon="ChartNoAxesColumn" title="Analytics" href="/docs/product/analytics">See deflection, categories, and response times over time.</Card>
+  <Card icon="SearchX" title="Knowledge gaps" href="/docs/product/knowledge-gaps">Find the questions your knowledge base cannot answer yet.</Card>
+</Cards>
