@@ -3,6 +3,9 @@
   "icon": "BookOpen",
   "pages": [
     "---Configuration---",
-    "billing-plans"
+    "environment-variables",
+    "billing-plans",
+    "---Internals---",
+    "data-model"
   ]
 }

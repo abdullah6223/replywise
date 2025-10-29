@@ -1,0 +1,234 @@
+---
+title: Environment Variables
+description: Complete reference for every environment variable recognised by Replywise.
+icon: Settings
+---
+
+This is the complete list of environment variables Replywise reads. Use it to look up a name, find out whether it is required, and see what it controls. To see the few you need to start, read [Minimum to boot](/docs/self-hosting/environment-variables) in the self-hosting guide.
+
+Set variables in your `.env` file (local) or in your hosting provider's environment configuration (production).
+
+| Marker | Meaning |
+|---|---|
+| **Required** | Must be set for a working deployment |
+| **Optional** | Has a default, or only switches on an extra feature |
+| **Managed service only** | Used only on Replywise's own hosted service; self-hosters leave it unset |
+
+<Callout type="info">
+  Replywise uses **Auth.js v5**. The variable names are `AUTH_SECRET` and `AUTH_URL`, not `NEXTAUTH_SECRET` / `NEXTAUTH_URL`. If you are migrating from an older deployment, rename them. (`NEXTAUTH_URL` is still honoured as a fallback for `AUTH_URL` when building links in emails and OAuth callbacks.)
+</Callout>
+
+<Cards>
+  <Card icon="Server" title="Required for every install" href="#core-required">Database, session secret, public URL, encryption key, and Google sign-in.</Card>
+  <Card icon="Sparkles" title="AI provider" href="#ai-providers">An OpenAI key powers drafts and search out of the box.</Card>
+  <Card icon="MessageSquare" title="Channels" href="#discord">Discord, Slack, Google Chat, GitHub, Telegram and email.</Card>
+</Cards>
+
+## Core and access
+
+### Core (required)
+
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | **Required.** PostgreSQL connection string, e.g. `postgresql://<user>:<password>@<host>:5432/<database>` |
+| `DIRECT_DATABASE_URL` | Optional. Non-pooled connection string used only for `LISTEN`/`NOTIFY` (configuration hot-reload, live team and dashboard updates). Needed whenever `DATABASE_URL` points at a pooled connection (a provider's pooled endpoint, PgBouncer, etc.); otherwise it falls back to `DATABASE_URL` |
+| `AUTH_SECRET` | **Required.** Random 32-byte secret for the Auth.js v5 session and for channel connect flows. Generate with `openssl rand -hex 32` |
+| `AUTH_URL` | **Required.** Full public URL of your deployment, e.g. `https://replywise.example.com`. Used for sign-in callbacks and links in emails |
+| `ENCRYPTION_KEY` | **Required in production** (`NODE_ENV=production`). 32-byte hex key used to encrypt stored credentials at rest. Generate with `openssl rand -hex 32` |
+
+### Sign-in (required)
+
+Google is the only sign-in provider Replywise configures. Both variables are required.
+
+| Variable | Description |
+|---|---|
+| `AUTH_GOOGLE_ID` | Google OAuth client ID |
+| `AUTH_GOOGLE_SECRET` | Google OAuth client secret |
+
+Callback URL to register: `https://<your-domain>/api/auth/callback/google`
+
+<Callout type="info">
+  `DISCORD_CLIENT_ID` and `SLACK_CLIENT_ID` below are separate: they power the "connect a Discord server" and "Add to Slack" flows inside the product, not sign-in. There is no Discord, Slack or GitHub provider for dashboard sign-in.
+</Callout>
+
+### Networking
+
+| Variable | Description |
+|---|---|
+| `TRUST_PROXY_HOPS` | Optional. Number of proxies between the public internet and the app. Defaults to `1`. Set to `2` for Cloudflare in front of a platform load balancer |
+| `ORIGIN_VERIFY_SECRET` | Optional. A shared secret between your CDN or edge proxy and the app. Requires a matching rule at the edge; see the [self-hosting guide](/docs/self-hosting/environment-variables) |
+
+### Public URLs and multi-domain
+
+| Variable | Description |
+|---|---|
+| `APP_URL` | Optional. Public origin of the app, read at request time (changing it needs a restart, not a rebuild). Used, for example, as the server address advertised in the OpenAPI spec. Falls back to `NEXT_PUBLIC_APP_URL` |
+| `NEXT_PUBLIC_APP_URL` | Optional. Base URL of a dedicated dashboard subdomain (e.g. `https://app.example.com`) on the same deployment as your root domain. When set, marketing-page links go there instead of a relative `/dashboard` path. Most deployments serve everything from one domain and leave it unset |
+| `AUTH_COOKIE_DOMAIN` | Optional. Shares the session cookie across subdomains of your apex (e.g. `.example.com`). Required alongside `NEXT_PUBLIC_APP_URL`, because a session cookie is host-only by default |
+
+## AI providers
+
+### Platform default
+
+| Variable | Description |
+|---|---|
+| `OPENAI_API_KEY` | **Required for AI features unless every workspace brings its own key.** The platform-wide OpenAI key, used for AI answers, draft replies and embeddings for any workspace that has not saved its own provider key |
+
+<Callout type="info">
+  Anthropic, Google Gemini, Groq, Mistral, xAI and OpenAI-compatible endpoints are configured per workspace in **Settings → AI Model**, where each workspace saves its own key. They are not read from environment variables, so `ANTHROPIC_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY`, `GROQ_API_KEY` and `MISTRAL_API_KEY` have no effect; support for them is coming soon. Embeddings must produce 1536-dimension vectors.
+</Callout>
+
+### Widget chat runtime
+
+| Variable | Description |
+|---|---|
+| `COPILOTKIT_TELEMETRY_DISABLED` | Optional. Opts the widget chat runtime out of its telemetry ping. Defaults to `true`; set to `false` to opt back in |
+
+### Knowledge-base crawling
+
+| Variable | Description |
+|---|---|
+| `FIRECRAWL_API_KEY` | Optional. Firecrawl API key; needed for URL crawl imports into the knowledge base |
+| `FIRECRAWL_API_URL` | Optional. Point at a self-hosted Firecrawl instance instead of the managed service |
+
+## Channels
+
+### Discord
+
+| Variable | Description |
+|---|---|
+| `DISCORD_TOKEN` | Bot token from the Discord Developer Portal. Needed on both the app service (channel picker, invite flow) and the bot service. A workspace's own saved bot token takes precedence |
+| `DISCORD_CLIENT_ID` | Optional. Discord application client ID. When set, onboarding offers a 1-click "Add to Discord" flow instead of asking for a manually created bot token and channel IDs |
+| `DISCORD_CLIENT_SECRET` | Optional. OAuth2 client secret; required together with `DISCORD_CLIENT_ID` for the 1-click flow |
+| `DISCORD_APPLICATION_ID` | Optional. Discord application ID (usually the same as `DISCORD_CLIENT_ID`). Required to register the `/ask` and `/summarize` slash commands |
+| `DISCORD_GUILD_ID` | Optional. When set, slash commands are registered for that one server (instant) instead of globally (can take up to an hour to appear) |
+| `DISCORD_CHANNEL_IDS` | Optional. Comma-separated channel IDs the bot watches when the workspace has no channels saved in Settings |
+| `BOT_SECRET` | Shared secret between the bot service and the app. Each workspace gets its own in Settings; this is the environment fallback |
+| `BOT_TARGET_URL` | URL of the app as seen from the bot service, e.g. `https://replywise.example.com` (no trailing slash). Defaults to `http://localhost:3000` |
+
+### Slack
+
+| Variable | Description |
+|---|---|
+| `SLACK_CLIENT_ID` | Slack app client ID; enables the 1-click "Add to Slack" install |
+| `SLACK_CLIENT_SECRET` | Slack app client secret; required with `SLACK_CLIENT_ID` |
+| `SLACK_SIGNING_SECRET` | Signing secret from your Slack app, needed for Events API delivery |
+| `SLACK_POLL_INTERVAL_SECONDS` | Optional. How often, in seconds, the app polls Slack for new messages. Defaults to `60` |
+
+### Google Chat
+
+| Variable | Description |
+|---|---|
+| `GOOGLE_CHAT_SERVICE_ACCOUNT_JSON` | Full service-account JSON key as a single-line string, used for outgoing replies through the Chat API |
+| `GOOGLE_CHAT_ENDPOINT_URL` | Public HTTP endpoint URL of the Chat app. Must exactly match what is configured in Google Cloud |
+
+### GitHub
+
+| Variable | Description |
+|---|---|
+| `GITHUB_APP_ID` | Numeric ID of your GitHub App |
+| `GITHUB_APP_PRIVATE_KEY` | The App's PEM private key, **base64-encoded** (`base64 -i your-app.pem \| tr -d '\n'`) |
+| `GITHUB_WEBHOOK_SECRET` | Webhook secret for the GitHub App. Generate with `openssl rand -hex 32` and paste without a trailing newline. `/api/github/webhook` returns `503` until it is set |
+| `GITHUB_APP_SLUG` | URL slug of your GitHub App, e.g. `replywise` |
+| `GITHUB_APP_CLIENT_ID` | The App's Client ID. Enable "Request user authorization (OAuth) during installation" on the App |
+| `GITHUB_APP_CLIENT_SECRET` | A client secret generated in the App settings; required with `GITHUB_APP_CLIENT_ID` |
+
+### Telegram
+
+| Variable | Description |
+|---|---|
+| `TELEGRAM_WEBHOOK_BASE_URL` | Optional. Overrides `AUTH_URL` as the base for the Telegram webhook address. Each workspace saves its own bot token in Integrations → Telegram, so there is no bot-token variable |
+
+### Email (Resend, Gmail, Outlook)
+
+| Variable | Description |
+|---|---|
+| `RESEND_API_KEY` | Resend API key for outbound transactional email and the email ingest channel |
+| `RESEND_FROM` | Default sender address for transactional email, e.g. `support@replywise.example.com` |
+| `RESEND_WEBHOOK_SECRET` | Required for inbound email through Resend, and for bounce and complaint tracking. Signing secret (`whsec_...`) of your Resend webhook. Without it, Resend's events are not accepted; outbound replies still send |
+| `GMAIL_CLIENT_ID` / `GMAIL_CLIENT_SECRET` | Optional. Google Cloud OAuth client for the "Connect Gmail" send-only integration. Without it that feature is unavailable |
+| `GMAIL_REDIRECT_URI` | Optional. Override for the Gmail OAuth callback URL (defaults to `<app-url>/api/email/gmail/callback`) |
+| `OUTLOOK_CLIENT_ID` / `OUTLOOK_CLIENT_SECRET` | Optional. Microsoft Entra app registration for the "Connect Outlook" send-only integration. Without it that feature is unavailable |
+| `OUTLOOK_REDIRECT_URI` | Optional. Override for the Outlook OAuth callback URL (defaults to `<app-url>/api/email/outlook/callback`) |
+| `FEEDBACK_NOTIFY_EMAIL` | Optional. Where to send an alert when someone posts product feedback. Defaults to `hello@replywise.example.com`; set your own address on a self-hosted install |
+
+### Per-workspace integrations (no environment variable)
+
+Discourse, Circle and the Notion knowledge-base source are configured entirely per workspace. There is no platform-wide app or shared credential to set; each workspace pastes its own token or secret in Settings, and it is stored encrypted with `ENCRYPTION_KEY`.
+
+| Integration | Where it's configured | Setup guide |
+|---|---|---|
+| Discourse | Integrations → Discourse | [Discourse](/docs/integrations/discourse) |
+| Circle | Integrations → Circle | [Circle](/docs/integrations/circle) |
+| Notion KB source | Integrations → Notion | [Notion](/docs/integrations/notion) |
+
+## Operations
+
+### Analytics tuning
+
+| Variable | Description |
+|---|---|
+| `ROI_MINUTES_PER_TICKET` | Optional. Minutes assumed saved per deflected ticket in the ROI calculation. Defaults to `10` |
+| `ROI_STAFF_HOURLY_RATE` | Optional. Hourly staff rate used to turn hours saved into a dollar figure. Defaults to `50` |
+
+### Web Push (VAPID)
+
+Browser push notifications turn on when both keys are set. They announce new tickets and customer replies on existing ones; replies on the same ticket replace each other on the device.
+
+| Variable | Description |
+|---|---|
+| `VAPID_PUBLIC_KEY` | VAPID public key |
+| `VAPID_PRIVATE_KEY` | VAPID private key |
+| `VAPID_EMAIL` | Optional. Contact address in `mailto:` form, e.g. `mailto:admin@example.com` |
+
+Generate a key pair with:
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+### Sentry (error tracking)
+
+| Variable | Description |
+|---|---|
+| `SENTRY_DSN` | Optional. DSN from your Sentry project's Client Keys settings. Unset disables error tracking entirely; no requests to Sentry are made |
+| `SENTRY_AUTH_TOKEN` | Optional. Only needed to upload source maps at build time |
+| `SENTRY_ORG` | Optional. Sentry organization slug, used with `SENTRY_AUTH_TOKEN` |
+| `SENTRY_PROJECT` | Optional. Sentry project slug, used with `SENTRY_AUTH_TOKEN` |
+
+### Build, privacy and development
+
+| Variable | Description |
+|---|---|
+| `CLOUDFLARE_WEB_ANALYTICS` | Optional. Set to `true` to allow Cloudflare Web Analytics on pages. Read when the config loads, so set it where the build runs |
+| `NEXT_PUBLIC_DOCS_WIDGET_TOKEN` | Optional. Embeds a chat widget token on the built-in `/docs` pages. Local or dev use; the widget does not render without it |
+| `ALLOW_PRIVATE_OUTBOUND_URLS` | Development only. Set to `true` to let outbound fetches reach private addresses; ignored when `NODE_ENV=production` |
+| `MOCK_EXTERNALS` | Test suites only. Replaces external services with in-process fakes; a production process refuses to run with it set |
+
+## Billing and deployment mode
+
+<Callout type="warn">
+  Everything in this section is for Replywise's own managed service. Self-hosters leave all of it unset: your install is unmetered, every feature is unlocked, and no Stripe account is needed.
+</Callout>
+
+| Variable | Description |
+|---|---|
+| `DEPLOYMENT_MODE` | **Managed service only.** Set to `cloud` only on Replywise's own managed deployment. It decides whether plan-tier feature gating applies at all. Any other value, or unset, means self-hosted |
+| `STRIPE_SECRET_KEY` | **Managed service only.** Stripe secret API key. Required when `DEPLOYMENT_MODE=cloud`; its absence there is treated as a misconfiguration (billing shows an error state) |
+| `STRIPE_WEBHOOK_SECRET` | **Managed service only.** Signing secret for the Stripe webhook endpoint (`/api/billing/webhook`) |
+| `STRIPE_PUBLISHABLE_KEY` | **Managed service only.** Publishable key (`pk_...`) for the embedded checkout form on `/checkout`, read at request time. `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` is still accepted as a fallback. Without either, the page shows a disabled state instead of a card form |
+| `STRIPE_PRICE_STANDARD` / `STRIPE_PRICE_PRO` / `STRIPE_PRICE_ENTERPRISE` | **Managed service only.** Stripe Price IDs for each paid plan's checkout. Each must hold the price for the plan it names: the amount shown in the app comes from the code, the amount charged from Stripe |
+| `STRIPE_PRICE_STANDARD_ANNUAL` / `STRIPE_PRICE_PRO_ANNUAL` / `STRIPE_PRICE_ENTERPRISE_ANNUAL` | **Managed service only.** Yearly Price IDs for the same plans, used when a visitor picks annual billing. A plan without one declines annual checkout rather than billing the monthly price |
+| `FEEDBACK_WIDGET_ENABLED` | **Managed service only.** Set to `true` or `1` to show the product feedback board. Off by default; self-hosted installs have no board |
+
+<Callout type="info">
+  `DEPLOYMENT_MODE` exists so deployment type is never guessed from whether `STRIPE_SECRET_KEY` happens to be set. A missing or rotated key on the managed service surfaces as a misconfiguration instead of silently turning every paying workspace into an unmetered one.
+</Callout>
+
+## Where to go next
+
+<Cards>
+  <Card icon="Server" title="Self-hosting guide" href="/docs/self-hosting/environment-variables">The short list of variables you need to start.</Card>
+  <Card icon="Rocket" title="Quickstart" href="/docs/quickstart-self-host">Get a first workspace answering questions.</Card>
+  <Card icon="Plug" title="Integrations" href="/docs/integrations/agent-api">Connect channels and the Agent API.</Card>
+</Cards>
