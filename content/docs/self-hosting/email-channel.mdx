@@ -1,0 +1,194 @@
+---
+title: Email Channel Setup
+description: Operator setup for the email channel on a self-hosted Replywise deployment. Connect inbound mail, sending credentials and optional Gmail or Outlook mailbox connections.
+icon: Mail
+---
+
+The email channel turns messages sent to a support address into tickets, drafts an answer from your knowledge base, and replies in the same email thread. It does not poll an inbox. Instead, an email service tells Replywise the moment a message arrives.
+
+This page is the **operator** side for a self-hosted deployment: the credentials, the inbound webhook and the optional Gmail and Outlook apps. When you are done, mail sent to your support address becomes a ticket. Choosing a sending domain, allowed senders, escalation email and Automatic Deflections are covered in the [Email integration guide](/docs/integrations/email).
+
+## How an inbound email flows
+
+<Mermaid
+  caption="An email reaches Replywise through a webhook event, becomes a ticket, and either gets a reply or waits for your team"
+  chart={`sequenceDiagram
+  participant C as Customer
+  participant E as Email service
+  participant A as Replywise app
+  participant T as Your team
+  C->>E: Emails the support address
+  E->>A: Received-mail event
+  A->>E: Fetch the full message
+  A->>A: Filter, remove duplicates and match the thread
+  A->>A: Create the ticket and draft an answer
+  alt Confident answer and Automatic Deflections on
+    A->>C: Reply in the same email thread
+  else Otherwise
+    A->>T: Draft waits on the dashboard
+  end`}
+/>
+
+A customer reply to a conversation that already has a ticket is added to that ticket and your team is notified. It does not trigger a second automatic answer.
+
+## Set up inbound email
+
+<Steps>
+  <Step title="Set the email credentials">
+    Add the variables below to the `app` service and restart it. `RESEND_API_KEY` and `RESEND_FROM` handle outbound replies. `RESEND_WEBHOOK_SECRET` is what lets the app accept Resend's events.
+
+    ```dotenv
+    RESEND_API_KEY=<your-resend-api-key>
+    RESEND_FROM=<support@your-domain>
+    RESEND_WEBHOOK_SECRET=<signing-secret-from-your-resend-webhook>
+    ```
+  </Step>
+  <Step title="Verify a domain in Replywise">
+    In **Integrations → Email**, choose **Use your own domain**, enter the domain (or a support subdomain), and add the DKIM, return-path and inbound MX records shown at your DNS host. If the root domain's MX records already belong to Google Workspace or Microsoft 365, use a support subdomain so company mail is not redirected. Click **Check verification status** once DNS has propagated. The [integration guide](/docs/integrations/email#custom-domain-verified-sending) has the full flow.
+  </Step>
+  <Step title="Point the webhook at your app">
+    In your Resend dashboard, add a webhook that posts to the address below, with the signing secret you put in `RESEND_WEBHOOK_SECRET`.
+
+    ```text
+    <your-app-url>/api/email/ingest
+    ```
+
+    Subscribe to `email.received`, `email.bounced` and `email.complained`. Any other `email.` event is recorded as a delivery failure, so leave success events such as `email.delivered` unsubscribed.
+  </Step>
+  <Step title="Send a test email">
+    Email your support address. A ticket should appear in **Tickets** within a few seconds with the source badge "Email from" and the sender's address. Reply from the same inbox and the message is added to that ticket.
+  </Step>
+</Steps>
+
+<Callout type="info">
+  Mail is only accepted for a domain that is verified in Replywise. Mail to any other domain is ignored without an error.
+</Callout>
+
+### Bring your own inbound provider
+
+If you already receive mail through another service, it can post inbound messages to the same address instead of Resend. This route is optional. Each request must carry the organization's email webhook secret in an `X-Email-Webhook-Secret` header, and the body can be JSON or a form post with the sender, subject and text or HTML. The provider steps below come from each provider's own dashboard, so check its current documentation if a menu has moved.
+
+<Tabs items={['SendGrid', 'Mailgun', 'Postmark', 'Cloudflare']}>
+  <Tab value="SendGrid">
+    1. Open **Settings → Inbound Parse** and choose **Add Host & URL**.
+    2. Enter your domain and `<your-app-url>/api/email/ingest`.
+    3. Add the `X-Email-Webhook-Secret` header in the HTTP POST settings.
+  </Tab>
+  <Tab value="Mailgun">
+    1. Open **Sending → Routes** and choose **Create Route**.
+    2. Set the match filter to `match_recipient("support@your-domain")`.
+    3. Set the action to `forward("<your-app-url>/api/email/ingest")`.
+    4. Add the `X-Email-Webhook-Secret` header to the route.
+  </Tab>
+  <Tab value="Postmark">
+    1. Open **Message Streams → Inbound → Settings**.
+    2. Set the inbound webhook URL to `<your-app-url>/api/email/ingest`.
+    3. Add the `X-Email-Webhook-Secret` header in the webhook settings.
+  </Tab>
+  <Tab value="Cloudflare">
+    1. Open **Email → Email Routing → Rules**.
+    2. Forward matching mail to a Worker.
+    3. Have the Worker POST the message to `<your-app-url>/api/email/ingest` with the `X-Email-Webhook-Secret` header.
+  </Tab>
+</Tabs>
+
+## Optional: let people reply from their own mailbox
+
+By default replies go out from your verified domain or `RESEND_FROM`. An organization can instead connect a Gmail or Outlook mailbox so replies are sent through it. That needs an OAuth app that **you** register once for the whole deployment. Each app asks only for permission to send mail, never to read an inbox. Only one mailbox connection exists per organization, so connecting Outlook replaces a connected Gmail mailbox and the other way round. Without the variables for a provider, its connect button is unavailable and nothing else is affected.
+
+<Tabs items={['Gmail', 'Outlook']}>
+  <Tab value="Gmail">
+    <Steps>
+      <Step title="Create the OAuth client">
+        In Google Cloud, create a project, configure an OAuth consent screen, and create OAuth 2.0 credentials that request only the `gmail.send` scope.
+      </Step>
+      <Step title="Add the redirect URI">
+        Add `<your-app-url>/api/email/gmail/callback` as an authorized redirect URI.
+      </Step>
+      <Step title="Set the variables">
+        Set `GMAIL_CLIENT_ID` and `GMAIL_CLIENT_SECRET` on the `app` service. Set `GMAIL_REDIRECT_URI` only if your callback address differs from the one derived from `AUTH_URL`.
+      </Step>
+      <Step title="Submit the consent screen for review">
+        Google must review the consent screen before people outside your own testing can connect. Start this as soon as the screen exists.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab value="Outlook">
+    <Steps>
+      <Step title="Register the app">
+        In Microsoft Entra ID, register an app and add a client secret.
+      </Step>
+      <Step title="Add permissions and the redirect URI">
+        Configure the delegated `Mail.Send` and `offline_access` API permissions, and add `<your-app-url>/api/email/outlook/callback` as a redirect URI under **Authentication**.
+      </Step>
+      <Step title="Set the variables">
+        Set `OUTLOOK_CLIENT_ID` and `OUTLOOK_CLIENT_SECRET` on the `app` service. Set `OUTLOOK_REDIRECT_URI` only if your callback address differs from the one derived from `AUTH_URL`.
+      </Step>
+      <Step title="Complete publisher verification">
+        Microsoft requires Partner Center publisher verification before people outside your own tenant can consent without a step-up block. It is a separate, slower, account-level process, so start early. Testing against your own tenant works without it.
+      </Step>
+    </Steps>
+
+    Replies sent through Outlook carry `In-Reply-To` but not `References`, so the customer's mail client may show a little less thread context. Replywise's own ticket threading is unaffected.
+  </Tab>
+</Tabs>
+
+## Environment variables
+
+| Variable | Required | What it does |
+| --- | --- | --- |
+| `RESEND_API_KEY` | Yes | Sending replies, domain verification and retrieving received mail. The key needs domain access as well as sending |
+| `RESEND_FROM` | Yes | Default reply-from address, used when no custom domain or mailbox is set |
+| `RESEND_WEBHOOK_SECRET` | Yes, for Resend inbound | Signing secret from your Resend webhook. Without it inbound events from Resend are rejected, and bounce and complaint tracking is unavailable |
+| `GMAIL_CLIENT_ID` and `GMAIL_CLIENT_SECRET` | For Connect Gmail | Google Cloud OAuth client credentials |
+| `GMAIL_REDIRECT_URI` | No | Overrides the derived callback `<AUTH_URL or NEXTAUTH_URL>/api/email/gmail/callback` |
+| `OUTLOOK_CLIENT_ID` and `OUTLOOK_CLIENT_SECRET` | For Connect Outlook | Microsoft Entra app registration credentials |
+| `OUTLOOK_REDIRECT_URI` | No | Overrides the derived callback `<AUTH_URL or NEXTAUTH_URL>/api/email/outlook/callback` |
+
+## What the customer sees
+
+The customer emails your support address and, depending on your settings, either gets an answer in the same email thread or waits for your team. Their reply to that thread lands on the same ticket. See the [Email integration guide](/docs/integrations/email) for the full customer-facing behavior.
+
+<Accordions>
+  <Accordion title="How inbound mail is handled">
+    - **No duplicates.** Each message is recorded by its `Message-ID`, so a retried delivery from the provider never creates a second ticket.
+    - **Mail loops are stopped.** Automatic replies, bulk and list mail, and no-reply senders are rejected before anything is generated, and a sender who has already received 5 automatic replies in the past hour is not answered again until that window passes.
+    - **Unconfirmed senders get a person.** If the sender cannot be confirmed, a ticket is still created but marked as needing a person, no automatic answer is sent, and staff are notified. Such a message does not join an existing conversation.
+    - **Spam signals are honored** when the provider supplies them, and missing signals never block a legitimate email.
+    - **HTML-only mail** is converted to plain text rather than dropped. Quoted reply chains are stripped, and the subject is placed ahead of the body so triage has full context.
+    - **Short and large messages.** Messages under 10 characters are ignored. Request bodies are capped at 2 MB, the stored copy of each payload is capped at 64 KB, and text added to a ticket is capped at 8,000 characters.
+    - **Rate limit.** Each organization can send up to 60 inbound messages per minute.
+    - **Delivery status.** Bounces, spam complaints and delivery failures on outbound replies are shown as a badge on the ticket.
+  </Accordion>
+</Accordions>
+
+## Troubleshooting
+
+<Accordions>
+  <Accordion title="Emails arrive but no tickets appear">
+    Confirm the domain shows as verified in **Integrations → Email** and that the message was sent to an address on that domain. Then check **Allowed senders**: if the list is not empty, mail from other senders is filtered out. Also check that the sender is not an automatic or no-reply address, and that the message has at least 10 characters.
+  </Accordion>
+  <Accordion title="The webhook returns 401 Unauthorized">
+    `RESEND_WEBHOOK_SECRET` is missing, or it does not match the signing secret of the webhook in your Resend dashboard. Update it on the `app` service and restart.
+  </Accordion>
+  <Accordion title="The webhook returns 502 or 503">
+    The app received the event but could not fetch the message from Resend. Check that `RESEND_API_KEY` is set and has access to received mail.
+  </Accordion>
+  <Accordion title="The webhook returns 429">
+    The organization went over its limit of 60 inbound messages per minute. Messages that arrive after the limit resets are processed normally.
+  </Accordion>
+  <Accordion title="A ticket was created but no reply was sent">
+    That is the default. Automatic Deflections is off until you turn it on in **Integrations → Email**, so answers wait as drafts on your dashboard. If it is on, check that the sending domain is verified, or that the connected Gmail or Outlook mailbox is still connected.
+  </Accordion>
+  <Accordion title="Gmail or Outlook shows as not connected after consent">
+    Make sure the redirect URI registered with Google or Microsoft matches the callback address of this deployment exactly, and that `AUTH_URL` is your public address.
+  </Accordion>
+</Accordions>
+
+## Where to go next
+
+<Cards>
+  <Card icon="Mail" title="Email integration guide" href="/docs/integrations/email">Sending domain, allowed senders, escalation and Automatic Deflections.</Card>
+  <Card icon="Settings" title="Environment Variables" href="/docs/self-hosting/environment-variables">Every variable the app and bot read.</Card>
+  <Card icon="Ticket" title="Tickets" href="/docs/product/tickets">Review drafts and work email tickets.</Card>
+</Cards>

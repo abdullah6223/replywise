@@ -2,7 +2,10 @@
   "title": "Self-hosting guide",
   "icon": "Server",
   "pages": [
+    "---Set up---",
+    "docker",
     "---Connect channels---",
-    "discord-bot"
+    "discord-bot",
+    "email-channel"
   ]
 }
