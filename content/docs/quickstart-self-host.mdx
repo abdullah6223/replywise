@@ -1,0 +1,138 @@
+---
+title: Self-host quickstart
+description: Run Replywise on your own infrastructure with Docker.
+icon: Terminal
+---
+
+Use this guide to operate Replywise on infrastructure you manage. You will configure the application, database, authentication, model services, and channel connections. External model providers and connected platforms still process relevant content; review those services separately from the application’s hosting location.
+
+This is the fast path: one machine, Docker, and the minimum configuration. The [self-hosting guide](/docs/self-hosting/prerequisites) covers everything after it, including every environment variable, channel setup, production deployment, and upgrades.
+
+If you'd rather skip all of this, the [cloud quickstart](/docs/quickstart-cloud) gets you the same product with none of the infrastructure.
+
+<Tip>
+  Using Claude Code? [Install the `replywise-setup` skill](/docs/integrations/agent-skills) and have your agent run this guide for you — it checks prerequisites, scaffolds `.env`, and confirms the instance is actually healthy before handing back.
+
+  No agent? Run `npx @replywise/agent-sdk setup` directly — same checks, same steps, plain Node CLI, no Claude Code required.
+</Tip>
+
+## Before you start
+
+You need Node.js, Docker with Compose, pnpm, an AI provider key, and a Google OAuth client. The [prerequisites page](/docs/self-hosting/prerequisites) has the required versions and a list of accounts to set up first. For the Google client, follow [OAuth setup](/docs/self-hosting/oauth).
+
+## The flow at a glance
+
+Here is the whole flow in one picture; each step is spelled out below.
+
+<Mermaid
+  caption="Install flow: clone the repo, copy .env.example to .env, then start Docker Compose, which runs the app, the bot, and Postgres. Open the app in your browser at localhost port 3000."
+  chart={`flowchart TD
+  Clone["Clone the repo"] --> Env["Copy .env.example to .env"]
+  Env --> Compose["Run docker compose up --build"]
+  Compose --> App["app: dashboard and API"]
+  Compose --> Bot["bot: Discord and Slack listener"]
+  Compose --> DB[("postgres: database")]
+  App -->|migrations run on start| DB
+  Bot -->|hands what it hears to the app| App
+  Bot --> DB
+  App -->|"open port 3000"| Browser["Your browser"]`} />
+
+## 1. Clone the repo
+
+```bash
+git clone https://github.com/abdullah6223/replywise.git
+cd Replywise
+```
+
+## 2. Configure environment
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with at minimum:
+
+```dotenv
+# Required
+DATABASE_URL=postgresql://community:community@postgres:5432/community
+AUTH_URL=http://localhost:3000
+AUTH_SECRET=<run: openssl rand -hex 32>
+ENCRYPTION_KEY=<run: openssl rand -hex 32>
+
+# Google sign-in (the sign-in page shows no button without these)
+AUTH_GOOGLE_ID=<your-google-oauth-client-id>
+AUTH_GOOGLE_SECRET=<your-google-oauth-client-secret>
+
+# AI (required for deflection and KB search)
+OPENAI_API_KEY=<your-openai-api-key>
+```
+
+<Note>
+  This project uses **Auth.js v5**. The env vars are `AUTH_URL` and `AUTH_SECRET` — not `NEXTAUTH_URL` / `NEXTAUTH_SECRET`.
+</Note>
+
+To generate the two secrets, see [Generating secrets](/docs/self-hosting/prerequisites#generate-your-secrets). The full [environment variables reference](/docs/reference/environment-variables) lists every option.
+
+## 3. Start with Docker
+
+Once your `.env` has real values (not the ones above), this one command does the rest:
+
+```bash
+docker compose up --build
+```
+
+This starts:
+- **app** on `http://localhost:3000`
+- **bot** (Discord/Slack listener) connecting to the app
+- **postgres** on `localhost:5432` (data persisted in a named volume)
+
+Drizzle migrations run automatically on first start — no manual migration step. For published images, pinning a version, logs, and database access, see [Docker setup](/docs/self-hosting/docker).
+
+<Callout type="info">
+  This is the development stack: it mounts the source and runs `pnpm dev`, which is the quickest way to try Replywise. For a deployment that stays up, follow the [production guide](/docs/self-hosting/production).
+</Callout>
+
+<Warning>
+  Never run `docker compose down -v` — this deletes your database volume and all data.
+  Use `docker compose down` (no `-v`) to stop without data loss.
+</Warning>
+
+## 4. Create your account
+
+Open [http://localhost:3000](http://localhost:3000) and sign in with Google. On first login you'll see the onboarding wizard:
+
+1. **Connect your community** — Discord 1-click invite, Slack token, or skip
+2. **Seed your knowledge base** — drag-drop docs files or paste a URL
+3. **Configure AI** — verify your API key and pick a model
+4. **Go live** — checklist summary with links to Tickets and KB
+
+## 5. Verify it works
+
+```bash
+# Health check
+curl http://localhost:3000/api/health
+# → {"ok":true}
+
+# Confirm tables were created
+docker compose exec postgres psql -U community -d community -c "\dt"
+```
+
+## Next steps
+
+<CardGroup>
+  <Card title="Discord Bot" icon="discord" href="/docs/self-hosting/discord-bot">
+    Set up the Discord integration
+  </Card>
+  <Card title="Slack App" icon="slack" href="/docs/integrations/slack">
+    Set up Slack polling or OAuth
+  </Card>
+  <Card title="Google Chat App" icon="google" href="/docs/self-hosting/google-chat-app">
+    Connect a Google Chat space
+  </Card>
+  <Card title="GitHub App" icon="github" href="/docs/integrations/github">
+    Ingest Issues and Discussions
+  </Card>
+  <Card title="Deploy to Production" icon="rocket" href="/docs/self-hosting/production">
+    Railway, Fly.io, or any Docker host
+  </Card>
+</CardGroup>

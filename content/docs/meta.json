@@ -3,8 +3,12 @@
   "pages": [
     "---Get started---",
     "introduction",
+    "quickstart-cloud",
+    "quickstart-self-host",
     "---Use Replywise---",
     "product",
-    "integrations"
+    "integrations",
+    "---Look something up---",
+    "reference"
   ]
 }
