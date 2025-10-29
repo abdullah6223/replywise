@@ -1,0 +1,42 @@
+---
+title: Environment Variables
+description: The settings a self-hosted Replywise needs to start, and where to find every other variable.
+icon: Settings
+---
+
+A self-hosted Replywise is configured through a `.env` file. Copy `.env.example` to `.env`, fill in the settings below, and restart. Docker Compose reads `.env` and passes it to the containers. When you are done, the app starts and you can sign in.
+
+## Minimum to boot
+
+This is the shortest working configuration. Everything else is optional and can be added later.
+
+| Variable | Why you need it |
+|---|---|
+| `DATABASE_URL` | Where your data lives |
+| `AUTH_URL` | The public address of your instance |
+| `AUTH_SECRET` | Random secret for sign-in sessions |
+| `ENCRYPTION_KEY` | Random secret that protects saved API keys and tokens (required in production) |
+| `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` | Google sign-in, the only way to sign in |
+| `OPENAI_API_KEY` | Answers and knowledge-base search, unless each workspace saves its own key in Settings |
+| `BOT_SECRET` | Lets the bot service run background jobs such as knowledge-base syncs and, on the hosted service, trial-ending reminder emails |
+
+Generate each secret with `openssl rand -hex 32`.
+
+<Callout type="info">
+  Replywise uses **Auth.js v5**, so the names are `AUTH_URL` and `AUTH_SECRET`, not the older `NEXTAUTH_` names from v4 guides.
+</Callout>
+
+<Callout type="info">
+  Leave `DEPLOYMENT_MODE` unset. It is only for Replywise's own managed service.
+</Callout>
+
+## Find any other variable
+
+The [environment variables reference](/docs/reference/environment-variables) is the single complete list. It groups every variable by what it does and marks each one required, optional or managed-service-only, including the settings for each channel, email, billing and the bot service.
+
+<Cards>
+  <Card icon="Settings" title="Environment variables reference" href="/docs/reference/environment-variables">Look up any variable, its default and whether you need it.</Card>
+  <Card icon="Container" title="Docker setup" href="/docs/self-hosting/docker">Run the app, bot and database with Docker Compose.</Card>
+  <Card icon="KeyRound" title="OAuth setup" href="/docs/self-hosting/oauth">Create the Google sign-in credentials.</Card>
+  <Card icon="Cpu" title="AI model settings" href="/docs/product/ai-config#self-hosted-installs">Use your own provider or a model you host.</Card>
+</Cards>

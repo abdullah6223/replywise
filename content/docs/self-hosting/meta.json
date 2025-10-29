@@ -3,9 +3,15 @@
   "icon": "Server",
   "pages": [
     "---Set up---",
+    "environment-variables",
     "docker",
+    "oauth",
     "---Connect channels---",
     "discord-bot",
-    "email-channel"
+    "email-channel",
+    "---Run in production---",
+    "enterprise",
+    "---Questions---",
+    "faq"
   ]
 }

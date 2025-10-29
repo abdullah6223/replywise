@@ -1,0 +1,38 @@
+---
+title: FAQ
+description: How to run and test the AI provider without using an API key.
+icon: CircleHelp
+---
+
+Short answers for self-hosters and developers. If you hit an error instead, see [Troubleshooting](/docs/self-hosting/troubleshooting).
+
+<Accordions>
+  <Accordion title="Can I run Replywise without an AI provider API key?">
+    Yes, if you have a model you can reach over an OpenAI-compatible API, such as Ollama, LM Studio, or vLLM running on your own machine or network.
+
+    <Steps>
+      <Step>
+        Open **Settings → AI Model**.
+      </Step>
+      <Step>
+        Choose **OpenAI-compatible (Ollama, LM Studio, vLLM…)** as the chat provider.
+      </Step>
+      <Step>
+        Enter the **Base URL**, for example `http://localhost:11434/v1` for Ollama or `http://localhost:1234/v1` for LM Studio.
+      </Step>
+      <Step>
+        Leave the API key blank. The form says to leave it empty for local endpoints that don't require auth.
+      </Step>
+    </Steps>
+
+    A self-hosted install can point at hosts on its own network. If Replywise runs in Docker, `localhost` means the container, not your machine. On Docker Desktop use `host.docker.internal` instead, or run the app natively.
+
+    Knowledge-base features also need an embedding model. You set that in the Embeddings section of the same page.
+  </Accordion>
+  <Accordion title="Can I turn on MOCK_EXTERNALS to run a demo without keys?">
+    No. `MOCK_EXTERNALS` is for the test suites. It replaces real services with mocks, and a production process refuses to start with it set. For a demo without keys, use a local model as described above.
+  </Accordion>
+  <Accordion title="How do I test code that calls an AI provider without an API key?">
+    The test suites never call a real provider, so you don't need a key to run them. To test your own changes, mock the AI at the level you are testing. The [Testing AI behavior](https://github.com/abdullah6223/replywise/blob/main/CONTRIBUTING.md#testing-ai-behavior) section of the contributing guide explains the options and has a working example.
+  </Accordion>
+</Accordions>
