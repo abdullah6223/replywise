@@ -1,0 +1,141 @@
+---
+title: Discord Bot Setup
+description: Create the Discord application, bot token and environment variables a self-hosted Replywise deployment needs, and learn how the bot picks up config changes without a restart.
+icon: MessagesSquare
+---
+
+Discord is the one channel where the **operator** of a self-hosted deployment has to create the bot. Replywise cannot do it for you the way it does on the managed cloud. This page walks you through creating a Discord application, giving the app and bot services its credentials, and checking that the bot is picking up your settings.
+
+When you are done, anyone who is an owner or admin of your Replywise workspace can connect a Discord server from **Integrations → Discord** with one click, without ever seeing a token.
+
+<Callout type="info">
+  **This page is only for the operator.** Everything your team does inside Replywise once Discord is wired up (choosing channels, escalation role, confidence threshold, Automatic Deflections, forum channels, multiple servers) is covered in the [Discord integration guide](/docs/integrations/discord). The environment variable reference there and the one below describe the same variables.
+</Callout>
+
+## What the operator adds
+
+| You do this once, on the server | Your team does this in the product |
+| --- | --- |
+| Create the Discord application and bot token | Click **Add Replywise to Discord** and pick a server |
+| Turn on the Message Content intent | Choose channels and save them |
+| Register the OAuth redirect URL | Set the escalation role and confidence threshold |
+| Set the Discord environment variables on the `app` and `bot` services | Turn on Automatic Deflections when they trust the answers |
+
+## Set up the Discord application
+
+<Steps>
+  <Step title="Create the application and copy the bot token">
+    1. Go to [discord.com/developers/applications](https://discord.com/developers/applications) and click **New Application**. Name it, for example, "Replywise".
+    2. Open the **Bot** tab. If you see **Add Bot**, click it.
+    3. Under **Token**, click **Reset Token** and copy the value. This is `DISCORD_TOKEN`. Discord shows it only once.
+    4. On the **General Information** tab, copy the **Application ID**. This is `DISCORD_CLIENT_ID` (and `DISCORD_APPLICATION_ID`, which slash commands need).
+    5. Under **OAuth2**, copy the **Client Secret**. This is `DISCORD_CLIENT_SECRET`.
+  </Step>
+  <Step title="Turn on the Message Content intent">
+    On the **Bot** tab, under **Privileged Gateway Intents**, enable **Message Content Intent**. Without it Discord removes the text of every message before the bot receives it, so the bot looks online but nothing becomes a ticket.
+  </Step>
+  <Step title="Register the redirect URL">
+    Under **OAuth2 → Redirects**, add:
+
+    ```text
+    <your-app-url>/api/discord/callback
+    ```
+
+    `<your-app-url>` is the public address you set as `AUTH_URL` (for example `https://support.yourcompany.com`). Discord sends people back to this address after they authorize.
+  </Step>
+  <Step title="Set the environment variables">
+    Add the variables in the table below to your `.env` (or your host's environment settings), then restart the `app` and `bot` services. `DISCORD_TOKEN` must be set on **both** services: the `app` service uses it to list a server's channels in the picker, and the `bot` service uses it to connect to Discord.
+  </Step>
+  <Step title="Connect a server from the product">
+    Sign in, open **Integrations → Discord**, click **Add Replywise to Discord**, choose a server and approve. The channel picker opens next. See [Cloud setup](/docs/integrations/discord#cloud-setup-recommended) in the integration guide for what your team sees from here.
+  </Step>
+</Steps>
+
+### Environment variables
+
+| Variable | Set on | What it is |
+| --- | --- | --- |
+| `DISCORD_TOKEN` | `app` and `bot` | The bot token from the **Bot** tab |
+| `DISCORD_CLIENT_ID` | `app` | The application ID. Together with the next two variables it makes the **Add Replywise to Discord** button appear |
+| `DISCORD_CLIENT_SECRET` | `app` | The OAuth2 client secret from the same application |
+| `DISCORD_APPLICATION_ID` | `bot` | Usually the same value as `DISCORD_CLIENT_ID`. Needed for slash commands |
+| `BOT_TARGET_URL` | `bot` | Address the bot uses to reach the app, with no trailing slash. The bundled `docker-compose.yml` already sets it to `http://app:3000` |
+| `DISCORD_GUILD_ID` | `bot` | Optional. Registers slash commands for one server only, which takes effect immediately |
+
+`DISCORD_TOKEN`, `DISCORD_CLIENT_ID` and `DISCORD_CLIENT_SECRET` must all belong to the **same** Discord application. The full list of variables lives in [Environment Variables](/docs/self-hosting/environment-variables).
+
+<Accordions>
+  <Accordion title="Run one server from environment variables only">
+    If you have not saved a Discord connection in Settings, the bot falls back to environment variables: `DISCORD_TOKEN` for the token, `DISCORD_CHANNEL_IDS` for a comma-separated list of channel IDs, and `BOT_SECRET` as the shared secret between the bot and the app. In this mode you invite the bot yourself: under **OAuth2 → URL Generator** choose the scopes `bot` and `applications.commands`, give it the permissions View Channels, Send Messages and Read Message History, and open the generated URL. To copy a channel ID, turn on Developer Mode (Discord **User Settings → Advanced**), then right-click the channel and choose **Copy Channel ID**.
+  </Accordion>
+</Accordions>
+
+## How the bot picks up config changes
+
+You never restart the bot to change channels. When someone saves a change in **Integrations → Discord**, the database notifies the running bot, which reloads straight away.
+
+<Mermaid
+  caption="A settings save reaches the running bot through a database notification, with no restart"
+  chart={`sequenceDiagram
+  participant Admin as Team member
+  participant App as Replywise app
+  participant DB as Postgres
+  participant Bot as Bot service
+  Admin->>App: Save channels in Integrations
+  App->>DB: Write the new settings
+  DB-->>Bot: config_changed notification
+  Bot->>DB: Read the fresh config
+  Bot->>Bot: Apply it to the next message`}
+/>
+
+- **What reloads:** the channel list for the workspace and for every connected server, and the Slack polling list (the same notification drives it).
+- **What does not:** the Discord bot token and environment variables. The bot is already logged in with the token it started with, so after you change `DISCORD_TOKEN` restart the `bot` service.
+- **Joining and leaving servers:** when the bot joins or leaves a server it refreshes its map of which server owns which channel, which source links on tickets rely on.
+- **Staying connected:** the bot holds one dedicated database connection just for notifications and pings it every 4 minutes. If a heartbeat fails or the connection drops, which can happen when a serverless Postgres suspends an idle database, the bot reconnects and subscribes again after a short delay. No manual restart is needed.
+
+<Callout type="warn">
+  Notifications need a direct (non-pooled) database connection. On plain Postgres, including the bundled Docker setup, nothing extra is needed. If you use a managed provider that gives you a pooled connection string, set `DIRECT_DATABASE_URL` to the provider's direct connection string so the bot receives them.
+</Callout>
+
+## Slash commands
+
+When `DISCORD_APPLICATION_ID` is set, the bot registers its slash commands every time it starts. There is no separate command to run.
+
+- `/ask <question>` searches your knowledge base and answers inline.
+- `/summarize` summarizes the last 20 messages in the channel as bullet points. An optional `count` (5 to 50) changes how many.
+
+Discord can take up to an hour to show commands registered for all servers. Set `DISCORD_GUILD_ID` while testing to register them for one server at once.
+
+## Troubleshooting
+
+<Accordions>
+  <Accordion title="The bot will not log in, or Discord answers 401 Unauthorized">
+    The value in `DISCORD_TOKEN` is not a live token. Discord shows a token only once, and resetting it invalidates the old one immediately. On the **Bot** tab click **Reset Token**, copy the new value into `DISCORD_TOKEN` with no quotes or spaces around it, and restart the `bot` service.
+  </Accordion>
+  <Accordion title="The bot is online but never sees messages">
+    **Message Content Intent** is off. Enable it under **Bot → Privileged Gateway Intents** and restart the `bot` service.
+  </Accordion>
+  <Accordion title="The channel picker is empty after authorizing">
+    `DISCORD_TOKEN` is missing on the `app` service. It must be set on both services, not only the bot. Add it and restart the app.
+  </Accordion>
+  <Accordion title="The Add Replywise to Discord button is missing, or the callback fails">
+    The button needs `DISCORD_TOKEN`, `DISCORD_CLIENT_ID` and `DISCORD_CLIENT_SECRET` on the `app` service, all from the same Discord application, and the redirect URL from the setup steps registered. If you regenerated the token after copying the client ID, make sure `DISCORD_TOKEN` holds the new value.
+  </Accordion>
+  <Accordion title="The bot joins but never replies">
+    Check that `BOT_TARGET_URL` has no trailing slash (`http://app:3000`, not `http://app:3000/`). Also confirm Message Content Intent is on. Remember that with Automatic Deflections off, answers wait as drafts on your dashboard instead of being posted.
+  </Accordion>
+  <Accordion title="Channel changes do not reach the bot until a restart">
+    The bot is not receiving database notifications. Check the bot logs for a "LISTEN active" line, and if your Postgres is behind a connection pooler, set `DIRECT_DATABASE_URL` as described above.
+  </Accordion>
+  <Accordion title="Slash commands do not appear">
+    Confirm `DISCORD_APPLICATION_ID` is set on the `bot` service and restart it. Commands registered for all servers can take up to an hour to appear, so set `DISCORD_GUILD_ID` to check quickly.
+  </Accordion>
+</Accordions>
+
+## Where to go next
+
+<Cards>
+  <Card icon="MessagesSquare" title="Discord integration guide" href="/docs/integrations/discord">Channels, forum posts, multiple servers and the full user-facing walkthrough.</Card>
+  <Card icon="Settings" title="Environment Variables" href="/docs/self-hosting/environment-variables">Every variable the app and bot read.</Card>
+  <Card icon="Wrench" title="Troubleshooting" href="/docs/self-hosting/troubleshooting">Fixes for common self-hosting problems.</Card>
+</Cards>
