@@ -1,0 +1,64 @@
+---
+title: Prerequisites
+description: What you need before running Replywise on your own infrastructure.
+icon: ListChecks
+---
+
+This page lists everything to have ready before you start the [self-host quickstart](/docs/quickstart-self-host). Nothing here takes long to get. Gathering it first saves you from bouncing between provider dashboards halfway through setup, which is the most common reason a first install stalls.
+
+When you are done, you will have the tools installed, a Google sign-in client, an AI provider key, and two generated secrets.
+
+## Tools and services you need
+
+| Requirement | Version | Notes |
+|---|---|---|
+| Node.js | 22 or newer | Needed to run the app outside Docker and for the CLI tools |
+| pnpm | 11 or newer | The package manager the project uses |
+| Docker | Latest stable | Includes Docker Compose v2. Required for the Docker setup in this guide |
+| Git | Any | Needed to clone the repository |
+| PostgreSQL with the `pgvector` extension | 15 or newer | Stores your data and powers knowledge-base search |
+
+<Callout type="info">
+  **Postgres with Docker needs no extra work.** The development compose file runs `pgvector/pgvector:pg16`, which already includes `pgvector`. If you bring your own Postgres instead (Supabase, Railway, RDS, or a bare install), run `CREATE EXTENSION vector;` once in that database before starting the app. Every major managed provider supports the extension.
+</Callout>
+
+## Accounts and keys
+
+| Service | What it is for | Cost |
+|---|---|---|
+| Google | Signing in. You create a Google OAuth client, as shown in [OAuth setup](/docs/self-hosting/oauth) | Free |
+| OpenAI (or another AI provider) | Drafting answers and indexing your knowledge base | Pay per use |
+
+An OpenAI key is the simplest start: it covers both answering and knowledge-base indexing, and it is the only provider Replywise reads from the server environment. Other providers are set per workspace in the dashboard. See [AI model settings](/docs/product/ai-config#self-hosted-installs).
+
+## Optional accounts for channels
+
+You do not need these to get started. Connect one channel first, confirm it works, then add the rest.
+
+| Service | What it is for |
+|---|---|
+| Discord | Community bot |
+| Slack | Community bot |
+| GitHub App | Issue and Discussion ingestion, and knowledge-base sync |
+
+## Generate your secrets
+
+Two settings need a random value. Generate each one separately:
+
+```bash
+openssl rand -hex 32
+```
+
+Run it twice: one value for `AUTH_SECRET` and a different one for `ENCRYPTION_KEY`. Never use the same value for both.
+
+<Warning>
+  Keep `ENCRYPTION_KEY` safe and do not change it after setup. It protects the API keys and tokens you save in the dashboard. If it changes, those saved credentials can no longer be read and everyone has to enter them again.
+</Warning>
+
+## Where to go next
+
+<Cards>
+  <Card icon="Terminal" title="Self-host quickstart" href="/docs/quickstart-self-host">Install and start Replywise on one machine.</Card>
+  <Card icon="KeyRound" title="OAuth setup" href="/docs/self-hosting/oauth">Create the Google sign-in client.</Card>
+  <Card icon="Settings" title="Environment variables" href="/docs/self-hosting/environment-variables">See the settings you will fill in.</Card>
+</Cards>

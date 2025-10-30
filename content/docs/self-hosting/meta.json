@@ -3,6 +3,7 @@
   "icon": "Server",
   "pages": [
     "---Set up---",
+    "prerequisites",
     "environment-variables",
     "docker",
     "oauth",
@@ -10,6 +11,7 @@
     "discord-bot",
     "email-channel",
     "---Run in production---",
+    "production",
     "enterprise",
     "---Questions---",
     "faq"
