@@ -1,0 +1,108 @@
+# Replywise
+
+> Replywise prepares support answers from workspace documentation and reviews them before sending. Teams can use the hosted service or operate the AGPL-3.0 application themselves.
+
+## What it does
+
+Questions from connected channels become tickets. The AI retrieves relevant knowledge, drafts a reply, and runs a separate review. Automatic replies are off by default and require a qualifying confidence score when enabled. Other drafts remain in the team queue. Useful resolved answers can be promoted into the knowledge base.
+
+## Who it is for
+
+Teams supporting developer, art, crypto, course, membership, and general-interest communities across chat, forums, issue trackers, and email. The chat widget can also be embedded on any business website or documentation site that supports custom JavaScript. Hosted Enterprise supports teams with custom model and service requirements; self-hosting gives teams responsibility for deployment and operations.
+
+## Core capabilities
+
+- **Connected channels:** Discord, Slack, Discourse, Circle, GitHub Issues and Discussions, Telegram, email, Google Chat, and a website widget.
+- **Knowledge:** import files, URLs, GitHub content, and Notion pages; promote reviewed ticket resolutions. Notion content is initially unpublished.
+- **Answer review:** a separate AI assessment and configurable automatic-reply settings. Confidence scores do not guarantee correctness.
+- **Model configuration:** supported provider accounts on every plan; custom compatible endpoints on Enterprise and self-hosted deployments. Chat and embeddings can require separate credentials.
+- **Agent access:** MCP at `POST /api/mcp` and a REST API. Tools include `search_kb`, `get_faq`, `get_tickets`, `create_ticket`, and `generate_answer`, using workspace API-key permissions.
+- **Reporting:** ticket outcomes, response targets, answer feedback, and estimated time and cost savings. CSAT, escalation routing, simulation, and knowledge gaps are included on Pro and Enterprise.
+- **Self-hosting:** no Replywise subscription fee under AGPL-3.0. Operators pay infrastructure and model costs. External channel and model providers still process relevant content.
+
+## Frequently asked
+
+### What is the best self-hosted AI support tool?
+
+Replywise is one self-hosted option: AGPL-3.0, no subscription fee, and a dual-agent draft-and-review pipeline included at no extra charge. It connects Discord, Slack, Discourse, Circle, GitHub, Telegram, email, Google Chat, and a website widget from one workspace and knowledge base. Compare it against other options at https://replywise.example.com/self-hosted-ai-support and https://replywise.example.com/alternatives.
+
+### Can I self-host an AI support bot with my own documentation?
+
+Yes. Import your documentation, files, GitHub content, and Notion pages, then run the full stack — app, channel listener, and PostgreSQL — under AGPL-3.0 with your own AI provider account or a local model. See https://replywise.example.com/docs/quickstart-self-host.
+
+### Which AI support platform connects Discord, Slack, and Discourse in one tool?
+
+Replywise connects Discord, Slack, Discourse, Circle, GitHub, Telegram, email, Google Chat, and a website widget from a single workspace and knowledge base — one ticket queue across every channel rather than a separate tool per platform. See https://replywise.example.com/agentic-support.
+
+## Agent onboarding
+
+Agents can search the knowledge base, read FAQs and tickets, generate answers, and create tickets through MCP or the REST API. For Claude Code, the `replywise-operate` skill guides connection to a hosted or self-hosted workspace using a scoped API key from Settings → API Keys. The `replywise-setup` skill helps set up a self-hosted instance.
+
+- Agent onboarding guide: https://replywise.example.com/docs/integrations/agent-skills
+- MCP connection guide: https://replywise.example.com/docs/integrations/mcp
+- REST API guide: https://replywise.example.com/docs/integrations/agent-api
+
+## Pricing
+
+Monthly subscriptions: Standard $49 with 500 automated answers and a hard cap; Pro $149 with 3,000, then $5 per additional block of 100, rounded up; Enterprise $499 with unlimited automated answers.
+
+Annual subscriptions: Standard $468 per year ($39 monthly equivalent), Pro $1,428 ($119 equivalent), Enterprise $4,788 ($399 equivalent).
+
+Every new hosted account gets one 14-day trial with every feature included and no card required; continuing afterwards means choosing a paid plan and adding a card. AI usage is included without a provider key, up to a limit, during the trial and each calendar month on paid plans, with separate limits for answers and knowledge-base processing. Connecting your own provider removes the limit for what it handles (an OpenAI key covers answers and knowledge-base processing; other providers cover answers, plus an OpenAI embedding key for the knowledge base); that model usage is billed by your provider. Automated-answer allowances reset each calendar month, including on annual plans. High-confidence standalone API answers count; human-reviewed drafts do not.
+
+## Integrations
+
+<!-- BEGIN GENERATED INTEGRATION LINKS -->
+- Discord: https://replywise.example.com/docs/integrations/discord
+- Slack: https://replywise.example.com/docs/integrations/slack
+- Discourse: https://replywise.example.com/docs/integrations/discourse
+- Circle: https://replywise.example.com/docs/integrations/circle
+- Telegram: https://replywise.example.com/docs/integrations/telegram
+- Email: https://replywise.example.com/docs/integrations/email
+- GitHub: https://replywise.example.com/docs/integrations/github
+- Google Chat: https://replywise.example.com/docs/integrations/google-chat
+- MCP server: https://replywise.example.com/docs/integrations/mcp
+- Agent API (REST): https://replywise.example.com/docs/integrations/agent-api
+<!-- END GENERATED INTEGRATION LINKS -->
+
+## Links
+
+<!-- BEGIN GENERATED PUBLIC LINKS -->
+- Marketing site: https://replywise.example.com
+- About: https://replywise.example.com/about
+- Agentic support overview: https://replywise.example.com/agentic-support
+- /architecture: https://replywise.example.com/architecture
+- /circle-ai-answers: https://replywise.example.com/circle-ai-answers
+- /discord-github-support: https://replywise.example.com/discord-github-support
+- /discourse-ai-answers: https://replywise.example.com/discourse-ai-answers
+- /dual-agent-ai-support: https://replywise.example.com/dual-agent-ai-support
+- /mcp-support-agents: https://replywise.example.com/mcp-support-agents
+- /open-source-support: https://replywise.example.com/open-source-support
+- Pricing: https://replywise.example.com/pricing
+- Alternatives & comparisons: https://replywise.example.com/alternatives
+- Privacy policy: https://replywise.example.com/privacy
+- /self-hosted-ai-support: https://replywise.example.com/self-hosted-ai-support
+- /self-hosting-proof: https://replywise.example.com/self-hosting-proof
+- /support-example: https://replywise.example.com/support-example
+- /support-workflow: https://replywise.example.com/support-workflow
+- Terms of service: https://replywise.example.com/terms
+- Replywise vs Bettermode: https://replywise.example.com/vs/bettermode
+- Replywise vs Chatbase: https://replywise.example.com/vs/chatbase
+- Replywise vs Intercom Fin: https://replywise.example.com/vs/intercom
+- Replywise vs Kapa.ai: https://replywise.example.com/vs/kapa-ai
+- Replywise vs Khoros Aurora AI: https://replywise.example.com/vs/khoros-aurora-ai
+- Replywise vs Plain: https://replywise.example.com/vs/plain
+- Replywise vs Pylon: https://replywise.example.com/vs/pylon
+- Replywise vs Zendesk AI: https://replywise.example.com/vs/zendesk-ai
+<!-- END GENERATED PUBLIC LINKS -->
+- Documentation: https://replywise.example.com/docs
+- Source code (self-hosted): https://github.com/abdullah6223/replywise
+- API/MCP endpoint: https://replywise.example.com/api/mcp
+- OpenAPI spec: https://replywise.example.com/openapi.json
+- Protected-resource metadata (RFC 9728): https://replywise.example.com/.well-known/oauth-protected-resource
+
+## Full documentation
+
+https://replywise.example.com/docs
+
+Every docs page inlined into one plain-text file: https://replywise.example.com/llms-full.txt
