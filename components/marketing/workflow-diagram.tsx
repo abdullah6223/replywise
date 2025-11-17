@@ -1,0 +1,47 @@
+export function WorkflowDiagram() {
+  return (
+    <figure aria-label="How Replywise drafts and reviews a support reply">
+      <ol className="marketing-workflow">
+        {[
+          [
+            '01 / Receive',
+            'Keep the conversation attached',
+            'A question becomes a help ticket with its channel and original message.',
+          ],
+          [
+            '02 / Answer agent',
+            'Draft from your knowledge',
+            'Replywise retrieves relevant docs and drafts a reply with its sources.',
+          ],
+          [
+            '03 / Review agent',
+            'A second AI agent checks the work',
+            'A second agent checks source alignment and confidence. Your channel settings determine the next step.',
+          ],
+        ].map(([label, title, body]) => (
+          <li key={label} className="marketing-workflow-step">
+            <p className="marketing-eyebrow">{label}</p>
+            <h3>{title}</h3>
+            <p>{body}</p>
+          </li>
+        ))}
+      </ol>
+      <div className="marketing-workflow-outcomes">
+        <div>
+          <h3>Automatic reply</h3>
+          <p>When enabled, qualifying answers post in the source channel.</p>
+        </div>
+        <div>
+          <h3>Team review</h3>
+          <p>
+            Your team reviews, edits, or answers help tickets that need attention.
+          </p>
+        </div>
+      </div>
+      <figcaption className="marketing-note">
+        Save useful resolutions to the knowledge base so future drafts can use
+        them.
+      </figcaption>
+    </figure>
+  )
+}
