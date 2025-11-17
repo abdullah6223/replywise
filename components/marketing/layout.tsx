@@ -1,0 +1,91 @@
+import Link from 'next/link'
+import { Source_Sans_3 } from 'next/font/google'
+import { START_HREF, PRICING_HREF } from './nav-shared'
+import type { ReactNode } from 'react'
+import { Nav, Footer, type NavState } from './chrome'
+import './marketing-site.css'
+import './marketing-theme.css'
+
+const marketingFont = Source_Sans_3({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-marketing-sans',
+})
+
+export function MarketingPage({
+  children,
+  navState,
+}: {
+  children: ReactNode
+  navState?: NavState
+}) {
+  return (
+    <div className={`marketing-site ${marketingFont.variable}`}>
+      <a className="marketing-skip" href="#main-content">
+        Skip to content
+      </a>
+      <Nav state={navState} />
+      <main id="main-content">{children}</main>
+      <Footer />
+    </div>
+  )
+}
+
+export function PageHero({
+  eyebrow,
+  title,
+  children,
+  aside,
+}: {
+  eyebrow?: string
+  title: string
+  children?: ReactNode
+  aside?: ReactNode
+}) {
+  return (
+    <section className="marketing-hero">
+      <div
+        className={`marketing-container${aside ? ' marketing-hero-split' : ''}`}
+      >
+        <div className="marketing-hero-copy">
+          {eyebrow && <p className="marketing-eyebrow">{eyebrow}</p>}
+          <h1>{title}</h1>
+          {children && <div className="marketing-intro">{children}</div>}
+        </div>
+        {aside}
+      </div>
+    </section>
+  )
+}
+
+export function TrialCta({
+  title = 'Try it with the questions your team gets every week',
+  description = 'Add a few support articles and connect a channel, then review the replies before deciding what to automate.',
+}: {
+  title?: string
+  description?: string
+}) {
+  return (
+    <section className="marketing-cta">
+      <div className="marketing-container">
+        <div>
+          <p className="marketing-eyebrow">Get started</p>
+          <h2>{title}</h2>
+          <p>{description}</p>
+        </div>
+        <div>
+          <Link className="marketing-button" href={START_HREF}>
+            Start a 14-day trial
+          </Link>
+          <p className="marketing-note">
+            No card required. Every feature is free for 14 days, with no
+            obligation.
+          </p>
+          <Link className="marketing-text-link" href={PRICING_HREF}>
+            View plans and model costs
+          </Link>
+        </div>
+      </div>
+    </section>
+  )
+}
