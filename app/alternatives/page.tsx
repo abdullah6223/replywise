@@ -1,0 +1,108 @@
+import { publicPageMetadata } from '@/lib/marketing/metadata'
+import type { Metadata } from 'next'
+import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import {
+  MarketingPage,
+  PageHero,
+  TrialCta,
+} from '@/components/marketing/layout'
+import { PageSchema } from '@/components/marketing/page-schema'
+import { marketingSiteEnabled } from '@/lib/site'
+export const dynamic = 'force-dynamic'
+export const metadata: Metadata = publicPageMetadata({
+  title: 'Compare Replywise',
+  description:
+    'Compare Replywise with Intercom Fin, Khoros Aurora AI, Bettermode, Kapa.ai, Chatbase, Plain, Pylon, and Zendesk AI.',
+  path: '/alternatives',
+})
+const COMPARISONS = [
+  {
+    slug: 'intercom',
+    name: 'Intercom Fin',
+    summary:
+      'Intercom combines a helpdesk with Fin, its AI customer agent. Fin also connects to other helpdesks.',
+  },
+  {
+    slug: 'khoros-aurora-ai',
+    name: 'Khoros Aurora AI',
+    summary:
+      'Aurora AI layers grounded answers, moderation, and workflow automation onto the Khoros enterprise community platform.',
+  },
+  {
+    slug: 'bettermode',
+    name: 'Bettermode',
+    summary:
+      'Bettermode is a hosted community platform with AI search available on its Growth plan and up.',
+  },
+  {
+    slug: 'kapa-ai',
+    name: 'Kapa.ai',
+    summary:
+      'Kapa.ai is a hosted answer bot for technical documentation, built for Discord, Slack, and a website widget.',
+  },
+  {
+    slug: 'chatbase',
+    name: 'Chatbase',
+    summary:
+      'Chatbase offers AI agents for chat, email, and voice, with a helpdesk for AI and human conversations.',
+  },
+  {
+    slug: 'plain',
+    name: 'Plain',
+    summary:
+      'Plain offers a B2B support workspace, AI assistants and agents, workflows, and APIs.',
+  },
+  {
+    slug: 'pylon',
+    name: 'Pylon',
+    summary:
+      'Pylon combines B2B support with customer context, AI agents, and account and product intelligence.',
+  },
+  {
+    slug: 'zendesk-ai',
+    name: 'Zendesk AI',
+    summary:
+      'Zendesk offers a support suite with ticketing, AI agents, and additional products for support operations.',
+  },
+]
+export default function AlternativesPage() {
+  // Not served by a self-hosted install: there is no hosted plan to sell there,
+  // and the page would be advertising our pricing from somebody else's domain.
+  if (!marketingSiteEnabled()) notFound()
+
+  return (
+    <MarketingPage>
+      <PageSchema
+        name="Compare Replywise"
+        description="Product comparisons for teams evaluating AI support."
+        path="/alternatives"
+        type="CollectionPage"
+      />
+      <PageHero
+        eyebrow="Comparisons"
+        title="Choose the support workflow your team needs."
+      >
+        <p>
+          Compare channels, answer review, deployment, and operating costs. Each
+          comparison links to the competitor’s published information and
+          includes a review date.
+        </p>
+      </PageHero>
+      <section className="marketing-section">
+        <div className="marketing-container marketing-grid">
+          {COMPARISONS.map((c) => (
+            <article className="marketing-card" key={c.slug}>
+              <h2 className="!text-xl">Replywise vs {c.name}</h2>
+              <p>{c.summary}</p>
+              <Link className="marketing-text-link" href={`/vs/${c.slug}`}>
+                Compare {c.name}
+              </Link>
+            </article>
+          ))}
+        </div>
+      </section>
+      <TrialCta />
+    </MarketingPage>
+  )
+}
