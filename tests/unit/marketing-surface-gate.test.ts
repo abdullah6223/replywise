@@ -1,0 +1,193 @@
+import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest'
+
+// app/sitemap pulls in the Fumadocs source, which drags .mdx through vite and
+// fails to parse under vitest. The docs entries are not what is under
+// test — whether the sitemap is emitted at all is.
+vi.mock('@/lib/docs/source', () => ({
+  docsSource: { getPages: () => [{ url: '/docs/introduction' }] },
+}))
+
+/**
+ * One image serves the managed deployment and every self-hosted install, so
+ * anything the marketing site does, a self-hoster's domain does too unless it
+ * is gated.
+ *
+ * The visible half is cosmetic — a landing page selling a hosted plan to
+ * somebody who has already chosen not to buy one. The costly half is not:
+ * `robots.txt` shipped `allow: '/'` and a sitemap pointing at replywise.example.com,
+ * so every publicly reachable self-hosted instance invited crawlers to index a
+ * duplicate of our marketing copy under a domain we do not control, and handed
+ * them our sitemap while doing it.
+ *
+ * The polarity of the gate is the part worth protecting. `getDeploymentMode()`
+ * returns 'self-hosted' whenever DEPLOYMENT_MODE is unset, so the safe state is
+ * the default: a fresh clone with no configuration serves no marketing surface
+ * and no sitemap without its operator knowing any of this exists. A future
+ * refactor that inverts this — defaulting to "on" and requiring an opt-out —
+ * would reintroduce the leak silently and everywhere at once.
+ */
+
+const ORIGINAL_MODE = process.env.DEPLOYMENT_MODE
+
+async function fresh<T>(mode: string | undefined, load: () => Promise<{ default: T }>): Promise<T> {
+  if (mode === undefined) delete process.env.DEPLOYMENT_MODE
+  else process.env.DEPLOYMENT_MODE = mode
+  const { default: mod } = await load()
+  return mod
+}
+
+beforeEach(() => {
+  delete process.env.DEPLOYMENT_MODE
+})
+
+afterAll(() => {
+  if (ORIGINAL_MODE === undefined) delete process.env.DEPLOYMENT_MODE
+  else process.env.DEPLOYMENT_MODE = ORIGINAL_MODE
+})
+
+describe('marketingSiteEnabled is off unless this is the managed deployment', () => {
+  it('is off when DEPLOYMENT_MODE is unset', async () => {
+    delete process.env.DEPLOYMENT_MODE
+    const { marketingSiteEnabled } = await import('@/lib/site')
+    expect(marketingSiteEnabled(), 'unset must mean off — this is the default a clone gets').toBe(false)
+  })
+
+  it('is off for an explicitly self-hosted deployment', async () => {
+    process.env.DEPLOYMENT_MODE = 'self-hosted'
+    const { marketingSiteEnabled } = await import('@/lib/site')
+    expect(marketingSiteEnabled()).toBe(false)
+  })
+
+  it('is off for any unrecognised value rather than treating it as opt-in', async () => {
+    for (const value of ['Cloud', 'CLOUD', 'production', 'true', '1', '']) {
+      process.env.DEPLOYMENT_MODE = value
+      const { marketingSiteEnabled } = await import('@/lib/site')
+      expect(marketingSiteEnabled(), `${JSON.stringify(value)} must not enable the marketing site`).toBe(false)
+    }
+  })
+
+  it('is on only for exactly "cloud"', async () => {
+    process.env.DEPLOYMENT_MODE = 'cloud'
+    const { marketingSiteEnabled } = await import('@/lib/site')
+    expect(marketingSiteEnabled()).toBe(true)
+  })
+})
+
+describe('robots.txt does not invite crawlers onto a self-hosted install', () => {
+  async function robotsText(mode: string | undefined): Promise<string> {
+    if (mode === undefined) delete process.env.DEPLOYMENT_MODE
+    else process.env.DEPLOYMENT_MODE = mode
+    const { GET } = await import('@/app/robots.txt/route')
+    const res = await GET()
+    return res.text()
+  }
+
+  it('disallows the whole origin and offers no sitemap when not cloud', async () => {
+    const text = await robotsText(undefined)
+
+    expect(text).toBe('User-agent: *\nDisallow: /\n')
+    expect(text, 'a self-hosted instance must not advertise our sitemap as its own').not.toContain('Sitemap:')
+  })
+
+  it('allows crawling and points at our sitemap on the managed deployment', async () => {
+    const text = await robotsText('cloud')
+
+    expect(text).toContain('Allow: /')
+    expect(text).toContain('Sitemap: https://replywise.example.com/sitemap.xml')
+    // The app routes stay excluded — a crawler gets a /login redirect from
+    // every one of them.
+    expect(text).toContain('Disallow: /dashboard')
+    expect(text).toContain('Disallow: /api/')
+  })
+
+  it('opts out of AI training reuse while staying searchable and citable', async () => {
+    // Blocking crawl access here would also cut off the AI-referral citation
+    // traffic this site is trying to earn — see the SEO/crawlability push.
+    // Content Signals lets it separate the two: stay indexable and quotable,
+    // opt out of the separate grant of using the content to train a model.
+    const text = await robotsText('cloud')
+
+    expect(text).toContain('Content-Signal: search=yes, ai-input=yes, ai-train=no')
+  })
+})
+
+describe('the sitemap is empty off the managed deployment', () => {
+  it('lists nothing when not cloud', async () => {
+    const sitemap = await fresh<() => unknown[]>(undefined, () => import('@/app/sitemap'))
+    expect(sitemap(), 'every URL in it would be one we do not serve there').toEqual([])
+  })
+
+  it('lists the marketing routes on cloud', async () => {
+    const sitemap = await fresh<() => { url: string }[]>('cloud', () => import('@/app/sitemap'))
+    const urls = sitemap().map((e) => e.url)
+
+    expect(urls).toContain('https://replywise.example.com')
+    expect(urls).toContain('https://replywise.example.com/pricing')
+    expect(urls.every((u) => u.startsWith('https://replywise.example.com')), 'no foreign origins').toBe(true)
+  })
+})
+
+describe('the marketing pages themselves are gated', () => {
+  const read = async (rel: string) => (await import('node:fs')).readFileSync(rel, 'utf-8')
+
+  it('sends root to the product rather than a sales page when not cloud', async () => {
+    // A self-hoster typing the bare host wants the thing they installed. The
+    // access gate carries an unauthenticated request on to /login from there.
+    const src = await read('app/page.tsx')
+    expect(src).toContain("if (!marketingSiteEnabled()) redirect('/dashboard')")
+  })
+
+  it('404s every marketing page when not cloud', async () => {
+    // Every page under STATIC_ROUTES in app/sitemap.ts except the root
+    // redirect above — the sitemap list is the source of truth for what
+    // counts as a marketing page, so a new one added there and left ungated
+    // would otherwise slip through unnoticed.
+    const files = [
+      'app/pricing/page.tsx',
+      'app/about/page.tsx',
+      'app/agentic-support/page.tsx',
+      'app/architecture/page.tsx',
+      'app/discord-github-support/page.tsx',
+      'app/mcp-support-agents/page.tsx',
+      'app/open-source-support/page.tsx',
+      'app/alternatives/page.tsx',
+      'app/self-hosted-ai-support/page.tsx',
+      'app/self-hosting-proof/page.tsx',
+      'app/support-example/page.tsx',
+      'app/support-workflow/page.tsx',
+      'app/vs/chatbase/page.tsx',
+      'app/vs/intercom/page.tsx',
+      'app/vs/plain/page.tsx',
+      'app/vs/pylon/page.tsx',
+      'app/vs/zendesk-ai/page.tsx',
+    ]
+    for (const file of files) {
+      const src = await read(file)
+      expect(src, `${file} must be gated`).toContain('if (!marketingSiteEnabled()) notFound()')
+    }
+  })
+
+  it('every STATIC_ROUTES entry in the sitemap (other than the root and legal pages) has a matching gated page file', async () => {
+    // Catches the actual failure mode this test exists to prevent: a new
+    // marketing page added to the sitemap without ever being wired into this
+    // list above.
+    const sitemapSrc = await read('app/sitemap.ts')
+    const pathMatches = [...sitemapSrc.matchAll(/path:\s*'([^']*)'/g)].map((m) => m[1])
+    const exempt = new Set(['', '/privacy', '/terms']) // root redirects rather than 404s; legal pages stay reachable everywhere
+    const marketingPaths = pathMatches.filter((p) => !exempt.has(p))
+    for (const path of marketingPaths) {
+      const file = `app${path}/page.tsx`
+      const src = await read(file)
+      expect(src, `${file} (sitemap path ${path}) must be gated`).toContain('if (!marketingSiteEnabled()) notFound()')
+    }
+  })
+
+  it('leaves docs and privacy reachable everywhere', async () => {
+    // Documentation is useful to whoever is running the thing, and a privacy
+    // policy should not vanish because of a deployment flag.
+    for (const file of ['app/docs/layout.tsx', 'app/privacy/page.tsx']) {
+      const src = await read(file)
+      expect(src, `${file} should not be gated`).not.toContain('marketingSiteEnabled')
+    }
+  })
+})

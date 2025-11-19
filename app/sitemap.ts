@@ -1,0 +1,85 @@
+import type { MetadataRoute } from 'next'
+import { docsSource } from '@/lib/docs/source'
+import { marketingSiteEnabled, MARKETING_URL } from '@/lib/site'
+
+export const dynamic = 'force-dynamic'
+
+const BASE_URL = MARKETING_URL
+
+// Captured once when this module is first loaded — i.e. per deploy, not per
+// request. `new Date()` inline meant every crawl saw a lastmod of "right now",
+// which trains crawlers to ignore the field entirely. A timestamp that only
+// moves when a new build ships is both honest (the content really can change
+// on deploy) and useful as a change signal.
+const DEPLOY_TIME = new Date()
+
+type ChangeFrequency = MetadataRoute.Sitemap[number]['changeFrequency']
+
+// Static marketing routes worth a crawler's time. Auth-gated app routes
+// (/dashboard, /settings, etc.) are intentionally excluded — a crawler can't
+// do anything useful with a page that just redirects to /login.
+// Order is kept stable because scripts/sync-llms-txt.mjs derives the llms.txt
+// "Links" block from this list. priority is relative within this site only.
+const STATIC_ROUTES: { path: string; priority: number; changeFrequency: ChangeFrequency }[] = [
+  { path: '', priority: 1.0, changeFrequency: 'weekly' },
+  { path: '/about', priority: 0.6, changeFrequency: 'monthly' },
+  { path: '/agentic-support', priority: 0.8, changeFrequency: 'monthly' },
+  { path: '/architecture', priority: 0.7, changeFrequency: 'monthly' },
+  { path: '/circle-ai-answers', priority: 0.7, changeFrequency: 'monthly' },
+  { path: '/discord-github-support', priority: 0.7, changeFrequency: 'monthly' },
+  { path: '/discourse-ai-answers', priority: 0.7, changeFrequency: 'monthly' },
+  { path: '/dual-agent-ai-support', priority: 0.7, changeFrequency: 'monthly' },
+  { path: '/mcp-support-agents', priority: 0.7, changeFrequency: 'monthly' },
+  { path: '/open-source-support', priority: 0.7, changeFrequency: 'monthly' },
+  { path: '/pricing', priority: 0.9, changeFrequency: 'weekly' },
+  { path: '/alternatives', priority: 0.8, changeFrequency: 'monthly' },
+  { path: '/privacy', priority: 0.2, changeFrequency: 'yearly' },
+  { path: '/self-hosted-ai-support', priority: 0.7, changeFrequency: 'monthly' },
+  { path: '/self-hosting-proof', priority: 0.6, changeFrequency: 'monthly' },
+  { path: '/support-example', priority: 0.6, changeFrequency: 'monthly' },
+  { path: '/support-workflow', priority: 0.7, changeFrequency: 'monthly' },
+  { path: '/terms', priority: 0.2, changeFrequency: 'yearly' },
+  { path: '/vs/bettermode', priority: 0.8, changeFrequency: 'monthly' },
+  { path: '/vs/chatbase', priority: 0.8, changeFrequency: 'monthly' },
+  { path: '/vs/intercom', priority: 0.8, changeFrequency: 'monthly' },
+  { path: '/vs/kapa-ai', priority: 0.8, changeFrequency: 'monthly' },
+  { path: '/vs/khoros-aurora-ai', priority: 0.8, changeFrequency: 'monthly' },
+  { path: '/vs/plain', priority: 0.8, changeFrequency: 'monthly' },
+  { path: '/vs/pylon', priority: 0.8, changeFrequency: 'monthly' },
+  { path: '/vs/zendesk-ai', priority: 0.8, changeFrequency: 'monthly' },
+]
+
+export default function sitemap(): MetadataRoute.Sitemap {
+  // Every URL below is on our own domain. Served from a self-hosted install it
+  // would be a sitemap for somebody else's site, advertising pages that install
+  // should not be serving in the first place. robots.txt already disallows the
+  // whole origin there; this makes the sitemap itself empty rather than wrong.
+  if (!marketingSiteEnabled()) return []
+
+  const staticEntries: MetadataRoute.Sitemap = STATIC_ROUTES.map(({ path, priority, changeFrequency }) => ({
+    url: `${BASE_URL}${path}`,
+    lastModified: DEPLOY_TIME,
+    changeFrequency,
+    priority,
+  }))
+
+  // The docs home (app/docs/page.tsx) is not an MDX page, so getPages() does
+  // not return it. It is listed here rather than in STATIC_ROUTES because
+  // those are the gated marketing pages, and docs stay reachable everywhere.
+  const docsEntries: MetadataRoute.Sitemap = [
+    {
+      url: `${BASE_URL}/docs`,
+      lastModified: DEPLOY_TIME,
+      changeFrequency: 'weekly' as ChangeFrequency,
+      priority: 0.8,
+    },
+    ...docsSource.getPages().map((page) => ({
+      url: `${BASE_URL}${page.url}`,
+      lastModified: DEPLOY_TIME,
+      changeFrequency: 'monthly' as ChangeFrequency,
+      priority: 0.5,
+    })),
+  ]
+
+  return [...staticEntries, ...docsEntries]
+}
