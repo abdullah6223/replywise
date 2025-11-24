@@ -18,6 +18,7 @@ Main features:
 - **Ticket workflow.** AI triage (category, severity, priority), SLA deadlines, related-question search, ticket threads, CSV export and an activity log.
 - **Analytics and simulation.** Deflection rate, response times and estimated time saved, plus a dry-run mode that replays past questions without posting anything.
 - **Teams and billing.** Google sign-in, workspaces with invites and roles, browser push and email notifications, and Stripe billing for a managed deployment (self-hosted installs have no plan limits).
+- **Built-in documentation site** under `/docs`.
 
 ## Development
 
