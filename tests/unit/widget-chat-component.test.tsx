@@ -1,0 +1,346 @@
+// @vitest-environment happy-dom
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import type { Message } from '@ag-ui/client'
+
+/**
+ * WidgetChat's own logic — the email gate, send/loading/error state, and the
+ * CopilotKit `useAgent` wiring — rather than the CopilotKit runtime itself
+ * (that's the widget-chat-quota-and-validation / widget-kb-only-context
+ * route-level suites). `useAgent` is faked with a minimal AbstractAgent-shaped
+ * object under direct test control: `addMessage`/`runAgent` are spies, and
+ * `subscribe` stores the callbacks the component registers so a test can fire
+ * them (onEvent/onRunInitialized/onRunFinalized/onRunFailed) to drive the
+ * component through a real run's lifecycle without a live runtime.
+ */
+
+const h = vi.hoisted(() => ({
+  fetchMock: vi.fn(async () => new Response(null, { status: 200 })),
+}))
+
+vi.stubGlobal('fetch', h.fetchMock)
+
+type Subscriber = {
+  onEvent?: (p: { messages: Message[] }) => void
+  onRunInitialized?: () => void
+  onRunFinalized?: () => void
+  onRunFailed?: (p: { error: Error }) => void
+}
+
+function makeFakeAgent(initialMessages: Message[] = []) {
+  let messages = initialMessages
+  let subscriber: Subscriber | undefined
+  const addMessage = vi.fn((m: Message) => {
+    messages = [...messages, m]
+  })
+  const runAgent = vi.fn(async () => {})
+  return {
+    agent: {
+      get messages() {
+        return messages
+      },
+      addMessage,
+      runAgent,
+      subscribe: vi.fn((s: Subscriber) => {
+        subscriber = s
+        return { unsubscribe: vi.fn() }
+      }),
+    },
+    // Test-only helpers, not part of the real AbstractAgent surface. Wrapped
+    // in act() since these fire state updates outside any user-event or
+    // render call that would otherwise batch them for the test.
+    emit: {
+      event: (msgs: Message[]) => act(() => subscriber?.onEvent?.({ messages: msgs })),
+      runInitialized: () => act(() => subscriber?.onRunInitialized?.()),
+      runFinalized: () => act(() => subscriber?.onRunFinalized?.()),
+      runFailed: (error: Error = new Error('HTTP 503: This assistant is temporarily unavailable. Please contact support directly.')) =>
+        act(() => subscriber?.onRunFailed?.({ error })),
+    },
+    addMessage,
+    runAgent,
+  }
+}
+
+const h2 = vi.hoisted(() => ({
+  current: null as ReturnType<typeof makeFakeAgent> | null,
+  renderToolCall: vi.fn((_: unknown): unknown => null),
+  registered: [] as string[],
+}))
+
+vi.mock('@copilotkit/react-core/v2', () => ({
+  CopilotKitProvider: ({ children }: { children: React.ReactNode }) => children,
+}))
+vi.mock('@copilotkit/react-core/v2/headless', () => ({
+  useAgent: () => ({ agent: h2.current!.agent, isReady: true }),
+  useRenderTool: (cfg: { name: string }) => {
+    h2.registered.push(cfg.name)
+  },
+  useRenderToolCall: () => h2.renderToolCall,
+}))
+
+async function renderWidget(fake: ReturnType<typeof makeFakeAgent>) {
+  h2.current = fake
+  const { WidgetChat } = await import('@/app/widget/[widgetToken]/widget-chat')
+  return render(
+    <WidgetChat widgetToken={'a'.repeat(48)} renderToken="test-render-token" orgName="Acme" showBranding isSelfPreview={false} leadCaptureMode="up-front" />
+  )
+}
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  vi.resetModules()
+  localStorage.clear()
+  h2.renderToolCall.mockImplementation(() => null)
+  h2.registered.length = 0
+})
+
+describe('WidgetChat: email gate', () => {
+  it('shows the message thread only after the email gate is passed', async () => {
+    await renderWidget(makeFakeAgent())
+    expect(screen.queryByPlaceholderText('Ask a question…')).toBeNull()
+
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Skip' }))
+
+    expect(screen.getByPlaceholderText('Ask a question…')).toBeTruthy()
+  })
+
+  it('posts the email to the lead endpoint and then reveals the thread', async () => {
+    await renderWidget(makeFakeAgent())
+    const user = userEvent.setup()
+
+    await user.type(screen.getByPlaceholderText('you@example.com'), 'visitor@example.com')
+    await user.click(screen.getByRole('button', { name: 'Start chat' }))
+
+    await waitFor(() => expect(screen.getByPlaceholderText('Ask a question…')).toBeTruthy())
+    expect(h.fetchMock).toHaveBeenCalledWith(
+      '/api/widget/lead',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          widgetToken: 'a'.repeat(48),
+          renderToken: 'test-render-token',
+          email: 'visitor@example.com',
+        }),
+      })
+    )
+  })
+
+  it('keeps the gate up and tells the visitor when the lead request fails, with Skip still available', async () => {
+    h.fetchMock.mockRejectedValueOnce(new Error('network down'))
+    await renderWidget(makeFakeAgent())
+    const user = userEvent.setup()
+
+    await user.type(screen.getByPlaceholderText('you@example.com'), 'visitor@example.com')
+    await user.click(screen.getByRole('button', { name: 'Start chat' }))
+
+    await waitFor(() => expect(screen.getByText(/couldn.t save that right now/i)).toBeTruthy())
+    expect(screen.queryByPlaceholderText('Ask a question…')).toBeNull()
+
+    await user.click(screen.getByRole('button', { name: 'Skip' }))
+    expect(screen.getByPlaceholderText('Ask a question…')).toBeTruthy()
+  })
+})
+
+describe('WidgetChat: sending a message', () => {
+  it('adds the user message to the agent and starts a run, clearing the input', async () => {
+    const fake = makeFakeAgent()
+    await renderWidget(fake)
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Skip' }))
+
+    const input = screen.getByPlaceholderText('Ask a question…') as HTMLInputElement
+    await user.type(input, 'how do I install this?{Enter}')
+
+    expect(fake.addMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ role: 'user', content: 'how do I install this?' })
+    )
+    expect(fake.runAgent).toHaveBeenCalledOnce()
+    expect(input.value).toBe('')
+  })
+
+  it('does not submit an empty or whitespace-only message', async () => {
+    const fake = makeFakeAgent()
+    await renderWidget(fake)
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Skip' }))
+
+    const input = screen.getByPlaceholderText('Ask a question…')
+    await user.type(input, '   ')
+    await user.keyboard('{Enter}')
+
+    expect(fake.addMessage).not.toHaveBeenCalled()
+    expect(fake.runAgent).not.toHaveBeenCalled()
+  })
+
+  it('renders messages the agent reports via onEvent, in order', async () => {
+    const fake = makeFakeAgent()
+    await renderWidget(fake)
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Skip' }))
+
+    fake.emit.event([
+      { id: '1', role: 'user', content: 'hi' } as Message,
+      { id: '2', role: 'assistant', content: 'hello, how can I help?' } as Message,
+    ])
+
+    expect(screen.getByText('hi')).toBeTruthy()
+    expect(screen.getByText('hello, how can I help?')).toBeTruthy()
+  })
+})
+
+describe('WidgetChat: run lifecycle', () => {
+  it('shows the typing indicator while a run is in progress and disables input', async () => {
+    const fake = makeFakeAgent()
+    await renderWidget(fake)
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Skip' }))
+
+    fake.emit.runInitialized()
+
+    const input = screen.getByPlaceholderText('Ask a question…') as HTMLInputElement
+    expect(input.disabled).toBe(true)
+  })
+
+  it('clears the typing indicator and re-enables input once the run finishes', async () => {
+    const fake = makeFakeAgent()
+    await renderWidget(fake)
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Skip' }))
+
+    fake.emit.runInitialized()
+    fake.emit.runFinalized()
+
+    const input = screen.getByPlaceholderText('Ask a question…') as HTMLInputElement
+    expect(input.disabled).toBe(false)
+  })
+
+  it('shows an error message when a run fails, and clears it on the next attempt', async () => {
+    const fake = makeFakeAgent()
+    await renderWidget(fake)
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Skip' }))
+
+    fake.emit.runInitialized()
+    fake.emit.runFailed()
+
+    // Displayed text is the server's own message with the AG-UI "HTTP 503: "
+    // transport prefix stripped — see widget-chat.tsx's onRunFailed handler.
+    expect(
+      screen.getByText('This assistant is temporarily unavailable. Please contact support directly.')
+    ).toBeTruthy()
+
+    fake.emit.runInitialized()
+    expect(
+      screen.queryByText('This assistant is temporarily unavailable. Please contact support directly.')
+    ).toBeNull()
+  })
+})
+
+describe('WidgetChat: branding', () => {
+  it('shows the "Powered by" line when showBranding is true', async () => {
+    h2.current = makeFakeAgent()
+    const { WidgetChat } = await import('@/app/widget/[widgetToken]/widget-chat')
+    render(
+      <WidgetChat widgetToken={'a'.repeat(48)} renderToken="test-render-token" orgName="Acme" showBranding isSelfPreview={false} leadCaptureMode="up-front" />
+    )
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Skip' }))
+
+    expect(screen.getByText('Powered by Replywise')).toBeTruthy()
+  })
+
+  it('hides the "Powered by" line when showBranding is false', async () => {
+    h2.current = makeFakeAgent()
+    const { WidgetChat } = await import('@/app/widget/[widgetToken]/widget-chat')
+    render(
+      <WidgetChat widgetToken={'a'.repeat(48)} renderToken="test-render-token" orgName="Acme" showBranding={false} isSelfPreview={false} leadCaptureMode="up-front" />
+    )
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Skip' }))
+
+    expect(screen.queryByText('Powered by Replywise')).toBeNull()
+  })
+})
+
+
+describe('WidgetChat: rich cards', () => {
+  async function openThread(fake: ReturnType<typeof makeFakeAgent>) {
+    await renderWidget(fake)
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Skip' }))
+  }
+
+  it('registers renderers for the whole card catalog and a silent fallback for anything else', async () => {
+    await renderWidget(makeFakeAgent())
+    expect(new Set(h2.registered)).toEqual(
+      new Set(['show_steps', 'show_choices', 'show_callout', 'show_link_card', 'show_contact_options', '*'])
+    )
+  })
+
+  it('renders an assistant tool call through the card renderer, passing its result', async () => {
+    h2.renderToolCall.mockImplementation((arg: unknown) => {
+      const { toolCall, toolMessage } = arg as { toolCall: { id: string }; toolMessage?: { content: string } }
+      return <div data-testid="card">{`${toolCall.id}:${toolMessage?.content ?? 'pending'}`}</div>
+    })
+    const fake = makeFakeAgent()
+    await openThread(fake)
+    await fake.emit.event([
+      { id: 'u1', role: 'user', content: 'how?' },
+      {
+        id: 'a1',
+        role: 'assistant',
+        content: 'Here you go.',
+        toolCalls: [{ id: 'tc1', type: 'function', function: { name: 'show_steps', arguments: '{}' } }],
+      },
+      { id: 't1', role: 'tool', toolCallId: 'tc1', content: '{"ok":true}' },
+    ] as Message[])
+
+    expect(screen.getByText('Here you go.')).toBeTruthy()
+    expect(screen.getByTestId('card').textContent).toBe('tc1:{"ok":true}')
+  })
+
+  it('shows a card with no text, and never draws a bubble for the tool-result message', async () => {
+    h2.renderToolCall.mockImplementation(() => <div data-testid="card">card</div>)
+    const fake = makeFakeAgent()
+    await openThread(fake)
+    await fake.emit.event([
+      { id: 'u1', role: 'user', content: 'q' },
+      {
+        id: 'a1',
+        role: 'assistant',
+        content: '',
+        toolCalls: [{ id: 'tc1', type: 'function', function: { name: 'show_callout', arguments: '{}' } }],
+      },
+      { id: 't1', role: 'tool', toolCallId: 'tc1', content: 'RAW-TOOL-RESULT-JSON' },
+    ] as Message[])
+
+    expect(screen.getByTestId('card')).toBeTruthy()
+    expect(screen.queryByText('RAW-TOOL-RESULT-JSON')).toBeNull()
+  })
+
+  it('draws nothing for an assistant message with neither text nor a rendered card', async () => {
+    const fake = makeFakeAgent()
+    await openThread(fake)
+    await fake.emit.event([
+      { id: 'u1', role: 'user', content: 'q' },
+      { id: 'a1', role: 'assistant', content: '' },
+    ] as Message[])
+    expect(document.querySelectorAll('.bg-gray-100').length).toBe(0)
+  })
+
+  it('keeps the typing dots until the reply starts, then lets the streaming message stand in', async () => {
+    const fake = makeFakeAgent()
+    await openThread(fake)
+    await fake.emit.runInitialized()
+    await fake.emit.event([{ id: 'u1', role: 'user', content: 'q' }] as Message[])
+    expect(document.querySelector('.animate-bounce')).not.toBeNull()
+
+    await fake.emit.event([
+      { id: 'u1', role: 'user', content: 'q' },
+      { id: 'a1', role: 'assistant', content: 'Partial' },
+    ] as Message[])
+    expect(document.querySelector('.animate-bounce')).toBeNull()
+    expect(screen.getByText('Partial')).toBeTruthy()
+  })
+})
