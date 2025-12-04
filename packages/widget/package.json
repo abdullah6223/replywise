@@ -1,0 +1,67 @@
+{
+  "name": "@replywise/widget",
+  "version": "0.6.7",
+  "description": "Add the Replywise chat widget to a React, Next.js or plain JavaScript site. Loads the widget from your Replywise instance and answers from your published knowledge base.",
+  "license": "AGPL-3.0",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js",
+      "require": "./dist/react.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abdullah6223/replywise.git",
+    "directory": "packages/widget"
+  },
+  "homepage": "https://replywise.example.com/docs/product/chat-widget",
+  "bugs": "https://github.com/abdullah6223/replywise/issues",
+  "keywords": [
+    "replywise",
+    "chat-widget",
+    "support",
+    "knowledge-base",
+    "react",
+    "nextjs"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.5",
+    "react": "19.2.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
