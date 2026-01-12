@@ -2,6 +2,8 @@
   "title": "Agent API",
   "icon": "Code",
   "pages": [
+    "overview",
+    "searchKb",
     "getFaq",
     "getTickets",
     "createTicket",

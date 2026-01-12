@@ -1,0 +1,66 @@
+---
+title: Agent API Reference
+description: Per-endpoint parameter reference for the Agent API, generated from the live OpenAPI spec.
+---
+
+This is the index of the Agent API's endpoints. Pick an operation below to see every parameter and response field, generated directly from the live OpenAPI spec at [`/api/v1/agent/openapi.json`](/api/v1/agent/openapi.json).
+
+For setup, auth, error shapes, and rate limits, see the [Agent API guide](/docs/integrations/agent-api).
+
+## Make your first call
+
+Create an API key in **Settings → API Keys**, then search your knowledge base. Replace the base URL with your own domain if you self-host.
+
+<Tabs items={['curl', 'TypeScript']}>
+  <Tab value="curl">
+```bash
+curl -H "Authorization: Bearer <your-api-key>" \
+  "https://replywise.example.com/api/v1/agent/kb/search?query=how+do+I+reset+my+api+key&limit=5"
+```
+  </Tab>
+  <Tab value="TypeScript">
+```ts
+import { AgentClient } from "@replywise/agent-sdk";
+
+const client = new AgentClient({ apiKey: process.env.REPLYWISE_API_KEY! });
+
+const { results } = await client.searchKb({ query: "how do I reset my api key" });
+```
+  </Tab>
+</Tabs>
+
+Each result has a `question`, an `answer` and a `score`.
+
+## How a request flows
+
+<Mermaid
+  caption="Your code sends a request with an API key, Replywise runs the operation for that key's workspace, and a JSON response comes back."
+  chart={`sequenceDiagram
+  participant C as Your code
+  participant A as Agent API
+  participant W as Workspace data
+  C->>A: Request with an API key
+  A->>W: Run the operation for the key's workspace
+  W-->>A: Articles, FAQ, tickets or a generated answer
+  A-->>C: JSON response`}
+/>
+
+## Endpoints
+
+<Cards>
+  <Card title="Search the knowledge base" href="/docs/reference/api/searchKb">
+    Semantically search the organization's knowledge base
+  </Card>
+  <Card title="Get the latest FAQ" href="/docs/reference/api/getFaq">
+    Read the auto-generated FAQ for the organization
+  </Card>
+  <Card title="List tickets" href="/docs/reference/api/getTickets">
+    List support tickets, optionally filtered by status
+  </Card>
+  <Card title="Create a ticket" href="/docs/reference/api/createTicket">
+    File a new support ticket
+  </Card>
+  <Card title="Generate an answer" href="/docs/reference/api/generateAnswer">
+    Run the confidence-gated answer pipeline against a question
+  </Card>
+</Cards>
