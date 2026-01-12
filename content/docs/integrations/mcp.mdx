@@ -1,0 +1,170 @@
+---
+title: MCP Server
+description: Give any AI agent (Claude, Cursor, your own bot) direct access to your knowledge base, FAQ, and tickets via the Model Context Protocol.
+icon: Cable
+---
+
+<IntegrationFlow
+  platform="mcp"
+  source={{
+    title: 'Your AI agent',
+    text: 'Any agent that speaks MCP, such as Claude, Cursor, or a custom internal bot, asks Replywise a question or hands it a task.',
+  }}
+  sourceLabel="Your agent"
+  trigger={{
+    title: 'One endpoint, one API key',
+    text: 'The agent sends JSON-RPC requests to /api/mcp with an API key you created under Settings, API Keys. There is nothing to install on the Replywise side.',
+  }}
+  steps={[
+    { title: 'Match the workspace', text: 'The API key tells Replywise which workspace the request belongs to. The permissions you ticked when creating the key decide which tools the agent may call.' },
+    { title: 'Run the tool', text: 'Search, FAQ, and ticket tools read your workspace data. Opening a ticket or generating an answer uses the same pipeline as Discord, Slack, and email.' },
+    { title: 'Check the answer', text: 'When an answer is generated, a separate agent checks the draft against the retrieved sources before a confidence score is assigned.' },
+  ]}
+  outcomes={[
+    { tone: 'post', title: 'Search the knowledge base', text: 'search_kb returns the closest published articles with a relevance score.' },
+    { tone: 'post', title: 'Read the FAQ and tickets', text: 'get_faq returns the latest weekly FAQ digest, and get_tickets lists tickets, filtered by status, priority, or category.' },
+    { tone: 'post', title: 'Open a ticket', text: 'create_ticket runs the new ticket through triage and auto-draft. Replies are saved on the ticket for the agent to read back with get_tickets.' },
+    { tone: 'post', title: 'Generate an answer', text: 'generate_answer returns a source-grounded answer with a confidence score, without opening a ticket.' },
+  ]}
+  outcomesLabel="What your agent can do"
+  replyLabel="Results come back to your agent as the MCP tool response"
+/>
+
+An MCP server for customer support means an agent — Claude, Cursor, a custom internal bot, anything that speaks [MCP](https://modelcontextprotocol.io) — can search your knowledge base, read tickets, and generate a source-grounded answer directly, without a human opening a chat widget first. Replywise ships one: any MCP-compatible agent can search your knowledge base, read the latest FAQ, list/create tickets, and generate grounded answers — the same pipeline that powers Discord, Slack, and email.
+
+<Tip>
+  This is what makes Replywise agent-first: the tools below aren't a separate integration bolted on top, they call the exact same triage/answer pipeline every other channel uses, including deflection-limit metering and org-scoped data isolation.
+</Tip>
+
+Not using an MCP-native client? The [Agent API](/docs/integrations/agent-api) exposes the same operations as plain REST + OpenAPI, for frameworks like LangChain or AutoGen that don't speak MCP's JSON-RPC transport. Same API key works for both.
+
+Using Claude Code? [Install the `replywise-operate` skill](/docs/integrations/agent-skills) to get a ready-made procedure for connecting to this server and using the tools below, instead of wiring it up by hand.
+
+## Setup
+
+1. Go to **Settings → API Keys** (workspace owners and admins only — a key grants access to the org's tickets and knowledge base plus metered AI spend, so minting and revoking them is an admin action)
+2. Click **Create key**, give it a name (e.g. "Cursor" or "Support bot") and optionally pick an expiry (30/90/365 days, or never)
+3. Under **Permissions**, check only the [scopes](/docs/integrations/agent-api#scopes) this client needs — all are checked by default; a tool call the key isn't scoped for is rejected with JSON-RPC error `-32003`
+4. Copy the plaintext key shown — it's only displayed once and cannot be recovered later
+5. Paste the generated config into your MCP client's config file
+
+The endpoint is `https://replywise.example.com/api/mcp` on the hosted service. If you self-host, use your own domain; the example below uses `https://your-instance.example.com`.
+
+```json
+{
+  "mcpServers": {
+    "replywise": {
+      "url": "https://your-instance.example.com/api/mcp",
+      "headers": {
+        "Authorization": "Bearer al_live_..."
+      }
+    }
+  }
+}
+```
+
+Revoke a key any time from the same page. It is rejected immediately and removed from the active-key list. Replywise retains the revoked database record for audit history without presenting it as a usable workspace credential.
+
+## Transport
+
+Streamable HTTP, JSON-RPC 2.0, single endpoint: `POST /api/mcp`.
+
+- `initialize` and `notifications/initialized` don't require auth (standard MCP handshake)
+- Every other method requires `Authorization: Bearer <key>` — the key resolves to an organization, and every tool call is scoped to that org's data only
+- Rate limited per organization (shared across all of that org's keys), enforced globally across every running instance so the limit holds regardless of how many instances are deployed behind it. The ceiling is plan-scaled — 50/minute on Standard, 150/minute on Pro, 300/minute on Enterprise and self-hosted — plus a generous per-IP limit (300/minute) that applies before a key is even resolved. The [Agent API](/docs/integrations/agent-api) has its own separate counters with the same ceilings, so heavy REST traffic can't use up your MCP quota, or the reverse
+- Throttled requests return `429` with a `Retry-After` header (seconds) and JSON-RPC error code `-32002`, which is distinct from the generic internal-error code so your client can back off instead of alerting
+- If you send an `MCP-Protocol-Version` header, it must be a revision this server implements (`2024-11-05`) — anything else is rejected up front rather than silently ignored
+- Request bodies are capped at 64KB — larger requests get a 413 before the body is read
+- Each key is limited to the [scopes](/docs/integrations/agent-api#scopes) it was granted. `tools/list` is unfiltered (so an agent can see what a broader key would unlock), but a `tools/call` for a tool the key lacks the scope for returns JSON-RPC error `-32003` before the tool runs. Every tool definition carries its required scope on `_meta.requiredScope`.
+
+## Tools
+
+Each tool requires one scope, shared with the matching REST endpoint — see the [scope table](/docs/integrations/agent-api#scopes).
+
+| Tool | Required scope | Purpose |
+|---|---|---|
+| `search_kb` | `kb:read` | Semantic search over published KB articles (promoted from resolved tickets) |
+| `get_faq` | `faq:read` | Fetch the most recently generated FAQ digest |
+| `get_tickets` | `tickets:read` | List tickets, optionally filtered by `status`, `priority`, or `category` |
+| `create_ticket` | `tickets:write` | Open a new ticket — runs through the same AI triage pipeline as every other channel |
+| `generate_answer` | `answers:write` | Generate a KB-grounded answer with a confidence score, without opening a ticket |
+
+### search_kb
+
+```json
+{ "name": "search_kb", "arguments": { "query": "how do I reset my API key", "limit": 5 } }
+```
+
+`query` is capped at 2000 characters. Returns up to `limit` (max 20) matches: `{ question, answer, score }[]`.
+
+### get_faq
+
+No arguments. Returns the latest weekly FAQ digest, or a message if none has been generated yet.
+
+### get_tickets
+
+```json
+{ "name": "get_tickets", "arguments": { "status": "open", "priority": "high", "limit": 10 } }
+```
+
+All filters are optional. Returns up to `limit` (max 20) tickets, most recent first.
+
+### create_ticket
+
+```json
+{ "name": "create_ticket", "arguments": { "content": "Users report webhook retries are duplicated", "authorName": "Slack bot", "idempotencyKey": "a1b2c3d4" } }
+```
+
+`content` is required (max 4000 characters). The ticket is tagged `source_platform: "mcp"` and runs through the same category/priority classification and auto-draft pipeline as a Discord or Slack message — it may get auto-answered if confidence is high, otherwise it queues for human review in the dashboard. The tool waits for this pipeline to finish before returning, so the ticket is ready to inspect with its draft or review state. There's no chat channel to post a reply back into, so replies are saved on the ticket for the calling agent to read back via `get_tickets`.
+
+`idempotencyKey` is optional — pass a stable identifier (a UUID, a hash of the content) if your client retries on timeout or network error. Retrying with the same key returns the original ticket (`duplicate: true`) instead of opening a second one and re-running AI triage a second time.
+
+### generate_answer
+
+```json
+{ "name": "generate_answer", "arguments": { "question": "What's the rate limit on the widget API?" } }
+```
+
+`question` is capped at 2000 characters. Returns `{ answer, confidence, answered_fully, high_confidence }`.
+
+Two limits apply before anything is generated:
+
+| Limit | Counts | Ceiling |
+|---|---|---|
+| Monthly deflections | High-confidence generations only, pooled with auto-deflected tickets | Your plan's deflection allowance |
+| Monthly `generate_answer` calls | Every call, high-confidence or not | 5× your plan's deflection allowance |
+
+The second exists because only high-confidence answers are billed as deflections — the same standard a ticket has to clear to auto-deflect on any other channel. Without a separate ceiling, a caller whose questions consistently score low confidence would never move the deflection counter while still paying for an embedding and two model round trips per call. Both limits are unlimited on plans with unlimited deflections. Hitting either returns an error naming which one.
+
+## Security notes
+
+- Keys are shown once at creation; only a SHA-256 hash is stored server-side
+- Creating and revoking keys requires the owner or admin role — members can see which keys exist but not change them
+- Every tool call is scoped by the org resolved from the API key — there is no way for one org's key to read or write another org's data
+- Each key is further limited to the scopes it was granted, checked before the call does any work
+- Revoked and expired keys are rejected before any tool runs
+- Usage is recorded against the specific key that made the call, so a suspected leak can be traced to one credential instead of forcing a blanket rotation
+
+## FAQ
+
+### Does an agent use separate knowledge from the dashboard?
+
+No. Agent requests use the knowledge in the workspace associated with the API key — the same knowledge base, FAQ digest, and tickets your team sees in the dashboard.
+
+### Does a generated answer go through the same review as a Discord or Slack reply?
+
+Yes. `generate_answer` and the auto-triage path in `create_ticket` run through the same drafting and [dual-agent review](/docs/product/ai-deflection#why-there-are-two-ai-steps) steps as every other channel — a separate agent checks the draft against retrieved sources before a confidence score is assigned.
+
+### Do generated answers count toward my plan's usage?
+
+High-confidence standalone answers from `generate_answer` count toward the monthly automated-answer allowance, pooled with auto-deflected tickets from every other channel. A separate, higher ceiling applies to total `generate_answer` calls regardless of confidence — see [Tools](#tools) above for the exact limits.
+
+### Can I use this without an MCP-native client?
+
+Yes. The [Agent API](/docs/integrations/agent-api) exposes the same operations as plain REST + OpenAPI for frameworks that don't speak MCP's JSON-RPC transport, using the same API key.
+
+### Treat tool output as data, not instructions
+
+`get_tickets` and `search_kb` return text that community members wrote — support tickets and the KB articles promoted from them. Anyone who can file a ticket through any channel can put arbitrary text in there, and that text lands in your agent's context when it calls these tools.
+
+Prompt your agent to treat tool results as untrusted content to reason about, never as instructions to follow. Replywise keeps the blast radius small by design: `create_ticket` is the only tool that writes anything, and no tool can modify the knowledge base, change settings, or touch billing.

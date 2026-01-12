@@ -20,6 +20,9 @@
     "groq",
     "mistral",
     "ollama",
+    "---Agents and developers---",
+    "mcp",
+    "agent-api",
     "---Billing---",
     "stripe"
   ]
