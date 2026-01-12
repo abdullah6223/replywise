@@ -1,0 +1,10 @@
+{
+  "title": "Agent API",
+  "icon": "Code",
+  "pages": [
+    "getFaq",
+    "getTickets",
+    "createTicket",
+    "generateAnswer"
+  ]
+}
