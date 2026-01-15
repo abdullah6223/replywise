@@ -1,0 +1,133 @@
+import type {
+  AgentApiErrorBody,
+  AgentApiErrorCode,
+  CreateTicketParams,
+  CreateTicketResponse,
+  FaqResult,
+  GenerateAnswerParams,
+  GenerateAnswerResponse,
+  GetTicketsParams,
+  GetTicketsResponse,
+  KbSearchResponse,
+  SearchKbParams,
+} from "./types.js";
+
+export interface AgentClientOptions {
+  /** API key from Settings -> API Keys, `al_live_...`. Shared with the MCP server. */
+  apiKey: string;
+  /**
+   * Base URL of the Replywise instance. Defaults to the hosted cloud
+   * (`https://replywise.example.com`). Point this at a self-hosted instance instead.
+   */
+  baseUrl?: string;
+  /** Overrides the global `fetch` — mainly for tests. */
+  fetch?: typeof fetch;
+}
+
+export class AgentApiError extends Error {
+  readonly status: number;
+  readonly body: AgentApiErrorBody | undefined;
+  /** Only ever set on a 429 — see AgentApiErrorCode. */
+  readonly code: AgentApiErrorCode | undefined;
+
+  constructor(status: number, body: AgentApiErrorBody | undefined, message: string) {
+    super(message);
+    this.name = "AgentApiError";
+    this.status = status;
+    this.body = body;
+    this.code = body?.error?.code;
+  }
+}
+
+const DEFAULT_BASE_URL = "https://replywise.example.com";
+
+export class AgentClient {
+  private readonly apiKey: string;
+  private readonly baseUrl: string;
+  private readonly fetchImpl: typeof fetch;
+
+  constructor(options: AgentClientOptions) {
+    if (!options.apiKey) {
+      throw new Error("AgentClient requires an apiKey (Settings -> API Keys).");
+    }
+    this.apiKey = options.apiKey;
+    this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
+    this.fetchImpl = options.fetch ?? fetch;
+  }
+
+  /** GET /api/v1/agent/kb/search — requires the `kb:read` scope. */
+  searchKb(params: SearchKbParams): Promise<KbSearchResponse> {
+    const query = new URLSearchParams({ query: params.query });
+    if (params.limit !== undefined) query.set("limit", String(params.limit));
+    return this.request("GET", `/api/v1/agent/kb/search?${query}`);
+  }
+
+  /** GET /api/v1/agent/faq — requires the `faq:read` scope. */
+  getFaq(): Promise<FaqResult> {
+    return this.request("GET", "/api/v1/agent/faq");
+  }
+
+  /** GET /api/v1/agent/tickets — requires the `tickets:read` scope. */
+  getTickets(params: GetTicketsParams = {}): Promise<GetTicketsResponse> {
+    const query = new URLSearchParams();
+    if (params.status) query.set("status", params.status);
+    if (params.priority) query.set("priority", params.priority);
+    if (params.category) query.set("category", params.category);
+    if (params.limit !== undefined) query.set("limit", String(params.limit));
+    if (params.cursor !== undefined) query.set("cursor", params.cursor);
+    const qs = query.toString();
+    return this.request("GET", `/api/v1/agent/tickets${qs ? `?${qs}` : ""}`);
+  }
+
+  /**
+   * POST /api/v1/agent/tickets — requires the `tickets:write` scope.
+   * `idempotencyKey`, when given, is sent as the standard `Idempotency-Key`
+   * header (what most HTTP clients/SDKs attach automatically) rather than a
+   * body field — the server accepts either, but the header is what it
+   * prefers when both are present.
+   */
+  createTicket(params: CreateTicketParams): Promise<CreateTicketResponse> {
+    return this.request(
+      "POST",
+      "/api/v1/agent/tickets",
+      { content: params.content, authorName: params.authorName },
+      params.idempotencyKey ? { "Idempotency-Key": params.idempotencyKey } : undefined
+    );
+  }
+
+  /** POST /api/v1/agent/answers — requires the `answers:write` scope. */
+  generateAnswer(params: GenerateAnswerParams): Promise<GenerateAnswerResponse> {
+    return this.request("POST", "/api/v1/agent/answers", { question: params.question });
+  }
+
+  private async request<T>(
+    method: "GET" | "POST",
+    path: string,
+    body?: unknown,
+    extraHeaders?: Record<string, string>
+  ): Promise<T> {
+    const res = await this.fetchImpl(`${this.baseUrl}${path}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+        ...(body ? { "Content-Type": "application/json" } : {}),
+        ...extraHeaders,
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    const text = await res.text();
+    const data = text ? JSON.parse(text) : undefined;
+
+    if (!res.ok) {
+      const errorBody = data as AgentApiErrorBody | undefined;
+      throw new AgentApiError(
+        res.status,
+        errorBody,
+        errorBody?.error?.message ?? `Agent API request failed: ${res.status}`,
+      );
+    }
+
+    return data as T;
+  }
+}
