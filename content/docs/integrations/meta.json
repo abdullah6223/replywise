@@ -23,6 +23,7 @@
     "---Agents and developers---",
     "mcp",
     "agent-api",
+    "agent-skills",
     "---Billing---",
     "stripe"
   ]
