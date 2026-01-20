@@ -9,6 +9,7 @@
     "oauth",
     "---Connect channels---",
     "discord-bot",
+    "google-chat-app",
     "email-channel",
     "---Run in production---",
     "production",

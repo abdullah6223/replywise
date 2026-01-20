@@ -8,6 +8,7 @@
     "slack",
     "discourse",
     "circle",
+    "google-chat",
     "telegram",
     "email",
     "---Knowledge sources---",
