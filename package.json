@@ -15,6 +15,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:typecheck": "tsc --noEmit -p e2e/tsconfig.json",
+    "test:e2e:ui": "playwright test --ui",
+    "test:server": "next start -p 3100",
     "docs:generate-api": "node scripts/generate-api-reference.mjs",
     "llms:sync": "node scripts/sync-llms-txt.mjs",
     "llms:check": "node scripts/sync-llms-txt.mjs --check",
@@ -67,6 +71,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "@tailwindcss/postcss": "^4.1.4",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
