@@ -23,6 +23,7 @@
     "llms:sync": "node scripts/sync-llms-txt.mjs",
     "llms:check": "node scripts/sync-llms-txt.mjs --check",
     "github:backfill-threads": "tsx scripts/backfill-github-comment-threads.ts",
+    "docs:shots": "tsx scripts/docs-demo/capture.ts",
     "lint:fix": "oxlint --fix",
     "verify:stripe-prices": "tsx scripts/verify-stripe-prices.ts"
   },
