@@ -1,0 +1,48 @@
+name: 👀 New channel or integration
+description: Ask for Replywise to work with another chat platform, community tool, knowledge source, or AI provider.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        > **Start here:** new to the project? Read [CONTRIBUTING.md](https://github.com/abdullah6223/replywise/blob/main/CONTRIBUTING.md) first. It covers the ground rules, running Replywise locally, and how to open a pull request.
+  - type: input
+    id: name
+    attributes:
+      label: Which platform or tool?
+      placeholder: Microsoft Teams, Zendesk, Confluence, ...
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of integration is it?
+      options:
+        - A channel where questions come in
+        - A knowledge source to learn from
+        - An AI or embeddings provider
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: use-case
+    attributes:
+      label: How would you use it?
+      description: Describe your community or support setup and what you'd want Replywise to do there.
+    validations:
+      required: true
+  - type: input
+    id: docs
+    attributes:
+      label: Link to the platform's developer docs
+      description: A link to its API or bot documentation helps a lot, if you have one.
+  - type: dropdown
+    id: contribute
+    attributes:
+      label: Would you like to help build it?
+      options:
+        - Yes, I'd like to build it
+        - Yes, with some guidance
+        - No, I'm just requesting it
+    validations:
+      required: true
