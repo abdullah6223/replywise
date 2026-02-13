@@ -1,0 +1,50 @@
+---
+title: Security Scanning
+description: What Replywise does to ship secure releases, and what you should check when self-hosting.
+icon: ShieldCheck
+---
+
+Every Replywise release goes through automated dependency, secret, and code-level security scanning before it merges, so the code you deploy has already been checked. This page explains what that means for you as a self-hoster and gives you a short checklist for your own deployment.
+
+When you are done, you will know what is already covered and which six settings are yours to get right.
+
+## What is already covered before you deploy
+
+Every change to the codebase is scanned for known-vulnerable dependencies, leaked credentials, and common code-level security issues before it is merged. You do not need to run anything yourself to benefit from this. It is already reflected in the code you `git clone` or `docker pull`.
+
+The scanners are Trivy (dependencies, secrets, image), Semgrep (code analysis), and Zizmor (GitHub Actions workflow audit). They run at pinned versions, and Dependabot opens a PR whenever a newer version is released, so the tooling stays current without silently changing under CI.
+
+## What you are responsible for
+
+<Steps>
+  <Step title="Keep your deployment up to date">
+    Security fixes ship as regular releases. See [Upgrading](/docs/self-hosting/upgrading), and pull the latest image or `git pull` and rebuild regularly rather than pinning to an old version indefinitely.
+  </Step>
+  <Step title="Set a real ENCRYPTION_KEY">
+    AI provider API keys and bot tokens are stored encrypted, using `ENCRYPTION_KEY`. A production build (`NODE_ENV=production`) refuses to save a credential without it. Generate one with `openssl rand -hex 32` and never commit it to source control. See [Environment Variables](/docs/self-hosting/environment-variables).
+  </Step>
+  <Step title="Set a real AUTH_SECRET">
+    Generate a unique `AUTH_SECRET` for each deployment, and never reuse the example value from `.env.local.example`.
+  </Step>
+  <Step title="Run behind HTTPS">
+    Put TLS in front of Replywise. Railway, Fly.io, and most PaaS providers do this automatically. If you run raw Docker on your own machine, put a reverse proxy such as Caddy or nginx in front of it. Sign-in callbacks and webhooks expect your deployment to be reachable over HTTPS.
+  </Step>
+  <Step title="Keep secrets private">
+    Treat `GITHUB_WEBHOOK_SECRET`, `SLACK_SIGNING_SECRET`, `RESEND_WEBHOOK_SECRET`, and `BOT_SECRET` like API keys. Never commit them and never log them.
+  </Step>
+  <Step title="Restrict database access">
+    Postgres should not be reachable from the public internet. A managed Postgres provider usually does this by default. If you run Postgres yourself, firewall it so only the app and bot services can connect.
+  </Step>
+</Steps>
+
+## Reporting a vulnerability
+
+If you find a security issue in Replywise, please report it privately rather than opening a public GitHub issue. Email [security@replywise.example.com](mailto:security@replywise.example.com) with a description, the steps to reproduce it, and the affected component. The full process is in the repository's [security policy](https://github.com/abdullah6223/replywise/blob/main/SECURITY.md).
+
+## Where to go next
+
+<Cards>
+  <Card icon="CircleArrowUp" title="Upgrading" href="/docs/self-hosting/upgrading">Pull releases and rebuild safely.</Card>
+  <Card icon="Settings" title="Environment Variables" href="/docs/self-hosting/environment-variables">Every variable, including the secrets above.</Card>
+  <Card icon="Globe" title="Production" href="/docs/self-hosting/production">Put your deployment behind HTTPS and plan backups.</Card>
+</Cards>
