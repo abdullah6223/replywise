@@ -24,6 +24,7 @@
     "docs:generate-api": "node scripts/generate-api-reference.mjs",
     "llms:sync": "node scripts/sync-llms-txt.mjs",
     "llms:check": "node scripts/sync-llms-txt.mjs --check",
+    "load-test": "tsx scripts/load-test-mcp-agent.ts",
     "support:eval": "tsx scripts/support-eval.ts",
     "github:backfill-threads": "tsx scripts/backfill-github-comment-threads.ts",
     "docs:seed": "tsx scripts/docs-demo/seed.ts",
